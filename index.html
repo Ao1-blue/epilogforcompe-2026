@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <!-- Security Enhancement: Content Security Policy (CSP) -->
-    <!-- media-src 'self' blob: data:; を追加し、動画の再生・ダウンロードを許可 -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://esm.sh;
@@ -41,17 +40,15 @@
     <style>
         body {
             font-family: 'Noto Sans JP', sans-serif;
-            background-color: #f0eef5; /* Fallback */
-            overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+            background-color: #f0eef5;
+            overscroll-behavior-y: none;
         }
-        /* Hide scrollbar for Chrome, Safari and Opera */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
-        /* Hide scrollbar for IE, Edge and Firefox */
         .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
         .safe-area-bottom {
             padding-bottom: env(safe-area-inset-bottom);
@@ -63,6 +60,14 @@
         .animate-fadeIn {
             animation: fadeIn 0.5s ease-out forwards;
         }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(224, 122, 122, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(224, 122, 122, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(224, 122, 122, 0); }
+        }
+        .recording-pulse {
+            animation: pulse-ring 2s infinite;
+        }
     </style>
 </head>
 <body>
@@ -72,132 +77,30 @@
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
-            Activity, 
-            Timer, 
-            Calendar as CalendarIcon, 
-            Pill, 
-            Settings, 
-            AlertTriangle, 
-            Plus, 
-            Save, 
-            X, 
-            BarChart2, 
-            CloudRain, 
-            Phone, 
-            Clock,
-            CheckCircle,
-            FileText,
-            User,
-            Camera,
-            MapPin,
-            Trash2,
-            ChevronRight,
-            ChevronLeft,
-            Info,
-            List,
-            Edit3,
-            Dog,
-            Sparkles,
-            Heart,
-            Video,
-            Image as ImageIcon,
-            Download,
-            Smartphone 
+            Activity, Timer, Calendar as CalendarIcon, Pill, Settings, AlertTriangle, Plus, Save, X, BarChart2, 
+            CloudRain, Phone, Clock, CheckCircle, FileText, User, Camera, MapPin, Trash2, ChevronRight, ChevronLeft, 
+            Info, List, Edit3, Dog, Sparkles, Heart, Video, Image as ImageIcon, Download, Smartphone, StopCircle, PlayCircle,
+            Upload
         } from 'lucide-react';
 
-        /**
-         * EpiLog - Canine Epilepsy Management Application
-         * Based on IVETF Consensus Guidelines
-         * Theme: Muted Lavender & Stone (Calm & Natural)
-         */
-
         // --- Mock Data & Constants ---
-
-        const INITIAL_PROFILE = {
-            name: "",
-            breed: "",
-            gender: "", 
-            weight: "",
-            birthday: "",
-            onset: "",
-            vetName: "",
-            vetPhone: "",
-            image: null 
-        };
-
-        const INITIAL_SEIZURE_FORM = {
-            type: 'gtcs',
-            typeDetail: '', 
-            preSigns: [],
-            preSignDetail: '', 
-            postSigns: [],
-            postSignDetail: '', 
-            triggers: [],
-            triggerDetail: '', 
-            notes: ''
-        };
-
-        const EXAMPLE_PROFILE = {
-            name: "例: Barden",
-            breed: "例: Beagle",
-            weight: "例: 9.0",
-            vetName: "例: Lochアニマルクリニック",
-            vetPhone: "例: 03-1234-5678"
-        };
-
+        const INITIAL_PROFILE = { name: "", breed: "", gender: "", weight: "", birthday: "", onset: "", vetName: "", vetPhone: "", image: null };
+        const INITIAL_SEIZURE_FORM = { type: 'gtcs', typeDetail: '', preSigns: [], preSignDetail: '', postSigns: [], postSignDetail: '', triggers: [], triggerDetail: '', notes: '' };
+        const EXAMPLE_PROFILE = { name: "例: Barden", breed: "例: Beagle", weight: "例: 9.0", vetName: "例: Lochアニマルクリニック", vetPhone: "例: 03-1234-5678" };
         const DAILY_TIPS = [
             { type: 'IVETF', text: "発作日記は治療の羅針盤です。詳細な記録が獣医師の正しい判断を助けます。" },
             { type: 'IVETF', text: "発作動画は診断の強力なツールです。まずは安全を確保してから撮影を。" },
-            { type: 'IVETF', text: "投薬は「毎日同じ時間」に。血中濃度の安定が発作コントロールの鍵です。" },
-            { type: 'IVETF', text: "発作後は静かで薄暗い環境を。愛犬が安心できるスペースで休息させましょう。" },
-            { type: 'IVETF', text: "規則正しい生活リズムと十分な睡眠が、脳へのストレスを軽減します。" },
-            { type: 'IVETF', text: "急な断薬は発作重積のリスクがあります。お薬の変更は必ず獣医師の指示で。" },
-            { type: 'IVETF', text: "発作が5分以上続く場合(重積状態)は、迷わず緊急連絡・受診してください。" },
-            { type: 'Quote', text: "「希望は、目覚めている者が見る夢である。」(アリストテレス)" },
-            { type: 'Quote', text: "「忍耐は苦い味がするが、その実は甘い。」(ルソー)" },
-            { type: 'Quote', text: "「焦ることはない。自然は急がないが、すべてを成し遂げる。」(老子)" },
-            { type: 'Quote', text: "「我々が抱く不安の多くは、実際には起こらないことへの不安である。」(セネカ)" },
-            { type: 'Quote', text: "「愛の治療薬は、もっと愛することだけだ。」(ヘンリー・D・ソロー)" },
-            { type: 'Quote', text: "「今日という日は、残りの人生の最初の日である。」(チャールズ・ディードリッヒ)" },
-            { type: 'Quote', text: "「どんな冬も、永遠には続かない。」(ハル・ボーランド)" }
+            { type: 'Quote', text: "「希望は、目覚めている者が見る夢である。」(アリストテレス)" }
         ];
-
         const INITIAL_MEDS = [
-            { id: 1, name: 'フェノバルビタール', dosage: '30mg', remaining: 14, times: ['07:00', '19:00'], color: 'purple', takenToday: ['07:00'] },
-            { id: 2, name: 'ゾニサミド', dosage: '50mg', remaining: 3, times: ['07:00', '19:00'], color: 'blue', takenToday: [] }
+            { id: 1, name: 'フェノバルビタール', dosage: '30mg', remaining: 14, times: ['07:00', '19:00'], color: 'purple', takenToday: ['07:00'] }
         ];
+        const DEFAULT_SEIZURE_TYPES = [{ id: 'gtcs', label: '全般強直間代発作' }, { id: 'focal', label: '焦点発作' }, { id: 'focal_gen', label: '焦点から全般へ移行' }, { id: 'abs', label: '欠神発作' }];
+        const DEFAULT_PRE_ICTAL_SIGNS = ['落ち着きがない', '甘える', '隠れる', '一点を見つめる', '流涎(よだれ)', '嘔吐'];
+        const DEFAULT_POST_ICTAL_SIGNS = ['ふらつき', '徘徊', '多食(過食)', '一時的失明', '攻撃性', '睡眠'];
+        const DEFAULT_TRIGGERS = ['気圧低下', '大きな音/雷', '来客/興奮', '睡眠不足', '投薬遅れ', '不明'];
 
-        const DEFAULT_SEIZURE_TYPES = [
-            { id: 'gtcs', label: '全般強直間代発作' },
-            { id: 'focal', label: '焦点発作' },
-            { id: 'focal_gen', label: '焦点から全般へ移行' },
-            { id: 'abs', label: '欠神発作' },
-        ];
-
-        const DEFAULT_PRE_ICTAL_SIGNS = [
-            '落ち着きがない', '甘える', '隠れる', 
-            '一点を見つめる', '流涎(よだれ)', '嘔吐'
-        ];
-
-        const DEFAULT_POST_ICTAL_SIGNS = [
-            'ふらつき', '徘徊', '多食(過食)', 
-            '一時的失明', '攻撃性', '睡眠'
-        ];
-
-        const DEFAULT_TRIGGERS = [
-            '気圧低下', '大きな音/雷', '来客/興奮', '睡眠不足', '投薬遅れ', '不明'
-        ];
-
-        // Storage Keys
-        const STORAGE_KEYS = {
-            PROFILE: 'epilog_profile',
-            HISTORY: 'epilog_history',
-            MEDS: 'epilog_meds',
-            OPTIONS: 'epilog_options',
-            WARNINGS: 'epilog_warnings',
-            TIMER_STATE: 'epilog_timer_state',
-            DRAFT: 'epilog_draft'
-        };
+        const STORAGE_KEYS = { PROFILE: 'epilog_profile', HISTORY: 'epilog_history', MEDS: 'epilog_meds', OPTIONS: 'epilog_options', WARNINGS: 'epilog_warnings', TIMER_STATE: 'epilog_timer_state', DRAFT: 'epilog_draft' };
 
         // --- Utility Helper ---
         const formatTime = (seconds) => {
@@ -206,7 +109,6 @@
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         };
 
-        // Helper function to resize image
         const resizeImage = (file, maxWidth, maxHeight, callback) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -216,70 +118,227 @@
                 img.onload = () => {
                     let width = img.width;
                     let height = img.height;
-
-                    // Calculate new dimensions
                     if (width > height) {
-                        if (width > maxWidth) {
-                            height = Math.round(height * maxWidth / width);
-                            width = maxWidth;
-                        }
+                        if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth; }
                     } else {
-                        if (height > maxHeight) {
-                            width = Math.round(width * maxHeight / height);
-                            height = maxHeight;
-                        }
+                        if (height > maxHeight) { width = Math.round(width * maxHeight / height); height = maxHeight; }
                     }
-
                     const canvas = document.createElement('canvas');
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Compress to JPEG with lower quality for storage efficiency
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5); 
-                    callback(dataUrl);
+                    callback(canvas.toDataURL('image/jpeg', 0.5));
                 };
             };
         };
 
-        // --- Utility Components ---
-
+        // --- Components ---
         const Card = ({ children, className = "" }) => (
-            <div className={`bg-white/90 backdrop-blur rounded-xl shadow-sm border border-stone-100 p-4 ${className}`}>
-                {children}
-            </div>
+            <div className={`bg-white/90 backdrop-blur rounded-xl shadow-sm border border-stone-100 p-4 ${className}`}>{children}</div>
         );
 
         const Badge = ({ children, type = "neutral" }) => {
-            const styles = {
-                neutral: "bg-stone-100 text-stone-600",
-                purple: "bg-[#f0eef5] text-[#8c7b99]", // Muted Lavender
-                red: "bg-[#f5ebeb] text-[#a86060]", // Muted Dusty Red
-                green: "bg-[#eaf5ea] text-[#6b8c6b]", // Muted Green
-                blue: "bg-[#eef2f6] text-[#7b8c99]", // Muted Blue
-                amber: "bg-[#fff8e6] text-[#b38f5a]", // Muted Amber
+            const styles = { neutral: "bg-stone-100 text-stone-600", purple: "bg-[#f0eef5] text-[#8c7b99]", red: "bg-[#f5ebeb] text-[#a86060]", green: "bg-[#eaf5ea] text-[#6b8c6b]", blue: "bg-[#eef2f6] text-[#7b8c99]", amber: "bg-[#fff8e6] text-[#b38f5a]" };
+            return <span className={`px-2 py-1 rounded-md text-xs font-medium ${styles[type] || styles.neutral}`}>{children}</span>;
+        };
+
+        // --- Camera Widget Component (Enhanced with Auto-Fallback) ---
+        const CameraWidget = ({ isSeizing, onVideoAvailable }) => {
+            const videoRef = useRef(null);
+            const mediaRecorderRef = useRef(null);
+            const [isCameraActive, setIsCameraActive] = useState(false);
+            const [isRecording, setIsRecording] = useState(false);
+            const [recordedChunks, setRecordedChunks] = useState([]);
+            const [videoUrl, setVideoUrl] = useState(null);
+            const [useFallback, setUseFallback] = useState(false);
+
+            // Start camera automatically when seizure starts
+            useEffect(() => {
+                if (isSeizing && !isCameraActive && !videoUrl && !useFallback) {
+                    startCamera();
+                }
+                // Cleanup on unmount or seizure stop
+                return () => {
+                    stopCameraStream();
+                };
+            }, [isSeizing]);
+
+            const startCamera = async () => {
+                try {
+                    // Check if API exists
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error("API_UNSUPPORTED");
+                    }
+
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' }, // Use back camera
+                        audio: true 
+                    });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                    setIsCameraActive(true);
+                    setUseFallback(false);
+                } catch (err) {
+                    console.warn("Camera access failed, switching to fallback:", err);
+                    setUseFallback(true);
+                    stopCameraStream();
+                }
             };
+
+            const stopCameraStream = () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const tracks = videoRef.current.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    videoRef.current.srcObject = null;
+                }
+                setIsCameraActive(false);
+            };
+
+            const startRecording = () => {
+                if (!videoRef.current || !videoRef.current.srcObject) return;
+                
+                setRecordedChunks([]);
+                const stream = videoRef.current.srcObject;
+                const mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        setRecordedChunks((prev) => [...prev, event.data]);
+                    }
+                };
+
+                mediaRecorder.start();
+                mediaRecorderRef.current = mediaRecorder;
+                setIsRecording(true);
+            };
+
+            const stopRecording = () => {
+                if (mediaRecorderRef.current) {
+                    mediaRecorderRef.current.stop();
+                    setIsRecording(false);
+                    
+                    mediaRecorderRef.current.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        setVideoUrl(url);
+                        stopCameraStream(); // Save battery/resources
+                        if (onVideoAvailable) onVideoAvailable(true); // Signal parent
+                    };
+                }
+            };
+
+            // Handle manual file upload (Fallback)
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    setVideoUrl(url);
+                    if (onVideoAvailable) onVideoAvailable(true);
+                }
+            };
+
+            const handleDownload = () => {
+                if (!videoUrl) return;
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = videoUrl;
+                a.download = `epilog_seizure_${new Date().getTime()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                }, 100);
+            };
+
+            if (videoUrl) {
+                return (
+                    <div className="w-full bg-stone-900 rounded-xl overflow-hidden shadow-md mt-4 animate-fadeIn">
+                        <div className="p-3 bg-stone-800 flex justify-between items-center text-white">
+                            <span className="text-sm font-bold flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-400"/> 動画取得済み
+                            </span>
+                            <button onClick={() => { setVideoUrl(null); setRecordedChunks([]); if(!useFallback) startCamera(); }} className="text-xs text-stone-400 underline">撮り直す</button>
+                        </div>
+                        <video src={videoUrl} controls className="w-full h-48 bg-black object-contain" />
+                        <button 
+                            onClick={handleDownload}
+                            className="w-full bg-[#8c7b99] text-white p-3 font-bold flex items-center justify-center gap-2 hover:bg-[#7e6c8f] transition-colors"
+                        >
+                            <Download className="w-5 h-5" /> 端末に保存 (Download)
+                        </button>
+                        <p className="text-[10px] text-stone-400 p-2 text-center bg-stone-800">
+                            ※アプリ内には保存できません。必ず端末に保存してください。
+                        </p>
+                    </div>
+                );
+            }
+
+            if (useFallback) {
+                return (
+                    <div className="w-full bg-stone-100 rounded-xl overflow-hidden shadow-md mt-4 relative animate-fadeIn flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-stone-300" style={{ minHeight: '200px' }}>
+                        <Camera className="w-12 h-12 text-stone-400 mb-3" />
+                        <p className="text-stone-600 font-bold mb-1">カメラを起動</p>
+                        <p className="text-xs text-stone-400 mb-4">ブラウザの制限により標準カメラを使用します</p>
+                        
+                        <label className="bg-[#8c7b99] text-white px-6 py-3 rounded-xl font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2 cursor-pointer hover:bg-[#7e6c8f]">
+                            <Smartphone className="w-5 h-5" />
+                            <span>撮影 / 動画選択</span>
+                            <input 
+                                type="file" 
+                                accept="video/*" 
+                                capture="environment" 
+                                className="hidden" 
+                                onChange={handleFileUpload} 
+                            />
+                        </label>
+                    </div>
+                );
+            }
+
             return (
-                <span className={`px-2 py-1 rounded-md text-xs font-medium ${styles[type] || styles.neutral}`}>
-                    {children}
-                </span>
+                <div className="w-full bg-black rounded-xl overflow-hidden shadow-md mt-4 relative animate-fadeIn" style={{ minHeight: '200px' }}>
+                    <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        className="w-full h-64 object-cover"
+                    />
+                    
+                    {/* Camera Overlay Controls */}
+                    <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center items-center gap-6">
+                        {!isRecording ? (
+                            <button 
+                                onClick={startRecording}
+                                className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center bg-red-500 hover:bg-red-600 transition-colors shadow-lg"
+                            >
+                                <div className="w-6 h-6 bg-white rounded-sm"></div>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={stopRecording}
+                                className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center bg-stone-800 recording-pulse"
+                            >
+                                <StopCircle className="w-8 h-8 text-white" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Status Indicator */}
+                    <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
+                        <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                        <span className="text-white text-xs font-mono">
+                            {isRecording ? 'REC' : 'STANDBY'}
+                        </span>
+                    </div>
+                </div>
             );
         };
 
-        // --- Sub Components ---
 
-        const MasterListManager = ({ 
-            category, 
-            title, 
-            manageCategory, 
-            setManageCategory, 
-            masterOptions, 
-            removeMasterOption, 
-            newItemText, 
-            setNewItemText, 
-            addMasterOption 
-        }) => (
+        const MasterListManager = ({ category, title, manageCategory, setManageCategory, masterOptions, removeMasterOption, newItemText, setNewItemText, addMasterOption }) => (
             <div className="mb-6">
                 <h4 className="font-bold text-stone-600 mb-2 flex justify-between items-center">
                     {title}
@@ -291,14 +350,9 @@
                     {category === 'types' 
                     ? masterOptions.types.map(t => (
                         <div key={t.id} className="relative group">
-                            <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600 border border-stone-200">
-                                {t.label}
-                            </span>
+                            <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600 border border-stone-200">{t.label}</span>
                             {manageCategory === category && (
-                                <button 
-                                    onClick={() => removeMasterOption(category, t.id)}
-                                    className="absolute -top-1 -right-1 bg-[#c55b5b] text-white rounded-full w-4 h-4 flex items-center justify-center shadow-sm hover:scale-110"
-                                >
+                                <button onClick={() => removeMasterOption(category, t.id)} className="absolute -top-1 -right-1 bg-[#c55b5b] text-white rounded-full w-4 h-4 flex items-center justify-center shadow-sm hover:scale-110">
                                     <X className="w-2 h-2" />
                                 </button>
                             )}
@@ -306,35 +360,18 @@
                     ))
                     : masterOptions[category].map(item => (
                         <div key={item} className="relative group">
-                            <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600 border border-stone-200">
-                                {item}
-                            </span>
+                            <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600 border border-stone-200">{item}</span>
                             {manageCategory === category && (
-                                <button 
-                                    onClick={() => removeMasterOption(category, item)}
-                                    className="absolute -top-1 -right-1 bg-[#c55b5b] text-white rounded-full w-4 h-4 flex items-center justify-center shadow-sm hover:scale-110"
-                                >
+                                <button onClick={() => removeMasterOption(category, item)} className="absolute -top-1 -right-1 bg-[#c55b5b] text-white rounded-full w-4 h-4 flex items-center justify-center shadow-sm hover:scale-110">
                                     <X className="w-2 h-2" />
                                 </button>
                             )}
                         </div>
-                    ))
-                    }
+                    ))}
                     {manageCategory === category && (
                         <div className="flex items-center gap-2 w-full mt-2">
-                            <input 
-                                type="text" 
-                                placeholder="新しい項目名" 
-                                className="flex-1 p-2 text-sm border rounded border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]"
-                                value={newItemText}
-                                onChange={(e) => setNewItemText(e.target.value)}
-                            />
-                            <button 
-                                onClick={() => { addMasterOption(category, newItemText); setNewItemText(''); }}
-                                className="bg-[#8c7b99] text-white p-2 rounded text-sm hover:bg-[#7e6c8f] transition-colors"
-                            >
-                                追加
-                            </button>
+                            <input type="text" placeholder="新しい項目名" className="flex-1 p-2 text-sm border rounded border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" value={newItemText} onChange={(e) => setNewItemText(e.target.value)} />
+                            <button onClick={() => { addMasterOption(category, newItemText); setNewItemText(''); }} className="bg-[#8c7b99] text-white p-2 rounded text-sm hover:bg-[#7e6c8f] transition-colors">追加</button>
                         </div>
                     )}
                 </div>
@@ -342,178 +379,71 @@
         );
 
         // 1. Home / Dashboard View
-        const HomeView = ({ 
-            profile, 
-            isSeizing, 
-            isEmergency, 
-            timer, 
-            handleStartStop, 
-            showForm, 
-            setShowForm, 
-            dailyTip, 
-            nextMedInfo, 
-            setActiveTab, 
-            seizureHistory, 
-            masterOptions, 
-            setSelectedRecord 
-        }) => (
+        const HomeView = ({ profile, isSeizing, isEmergency, timer, handleStartStop, showForm, setShowForm, dailyTip, nextMedInfo, setActiveTab, seizureHistory, masterOptions, setSelectedRecord, onVideoAvailable }) => (
             <div className="space-y-6 pb-20">
                 <header className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-stone-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
-                            {profile.image ? (
-                                <img src={profile.image} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-[#f0eef5] text-[#8c7b99]">
-                                    <Dog className="w-6 h-6" />
-                                </div>
-                            )}
+                            {profile.image ? <img src={profile.image} alt="Profile" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-[#f0eef5] text-[#8c7b99]"><Dog className="w-6 h-6" /></div>}
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-stone-700 tracking-tight">EpiLog</h1>
-                            <p className="text-sm text-stone-500">
-                                <span className="font-bold text-[#8c7b99]">{profile.name || '愛犬'}</span>'s Epilepsy Care
-                            </p>
+                            <p className="text-sm text-stone-500"><span className="font-bold text-[#8c7b99]">{profile.name || '愛犬'}</span>'s Epilepsy Care</p>
                         </div>
                     </div>
-                    <div className="bg-[#f0eef5] p-2 rounded-full">
-                        <Activity className="w-6 h-6 text-[#8c7b99]" />
-                    </div>
+                    <div className="bg-[#f0eef5] p-2 rounded-full"><Activity className="w-6 h-6 text-[#8c7b99]" /></div>
                 </header>
 
                 <div className="flex flex-col items-center">
-                    <div 
-                        onClick={handleStartStop}
-                        className={`
-                            relative w-64 h-64 rounded-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-xl
-                            ${isSeizing 
-                                ? (isEmergency ? 'bg-[#e07a7a] animate-pulse' : 'bg-[#8c7b99]') 
-                                : 'bg-white border-4 border-[#f0eef5] hover:border-[#ded9e6]'}
-                        `}
-                    >
+                    <div onClick={handleStartStop} className={`relative w-64 h-64 rounded-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-xl ${isSeizing ? (isEmergency ? 'bg-[#e07a7a] animate-pulse' : 'bg-[#8c7b99]') : 'bg-white border-4 border-[#f0eef5] hover:border-[#ded9e6]'}`}>
                         {isSeizing ? (
                             <>
                                 <p className="text-white text-lg font-medium mb-1 animate-bounce">記録中 (Tap to Stop)</p>
-                                <span className="text-6xl font-mono font-bold text-white tracking-wider">
-                                    {formatTime(timer)}
-                                </span>
-                                {isEmergency && (
-                                    <div className="absolute bottom-8 flex flex-col items-center text-white">
-                                        <AlertTriangle className="w-8 h-8 mb-1" />
-                                        <span className="font-bold text-sm">緊急事態 (5分超過)</span>
-                                    </div>
-                                )}
+                                <span className="text-6xl font-mono font-bold text-white tracking-wider">{formatTime(timer)}</span>
+                                {isEmergency && <div className="absolute bottom-8 flex flex-col items-center text-white"><AlertTriangle className="w-8 h-8 mb-1" /><span className="font-bold text-sm">緊急事態 (5分超過)</span></div>}
                             </>
                         ) : (
                             <>
-                                <div className="bg-[#f0eef5] p-4 rounded-full mb-3">
-                                    <Timer className="w-10 h-10 text-[#8c7b99]" />
-                                </div>
+                                <div className="bg-[#f0eef5] p-4 rounded-full mb-3"><Timer className="w-10 h-10 text-[#8c7b99]" /></div>
                                 <span className="text-stone-400 text-sm font-medium">発作が発生したらタップ</span>
                                 <span className="text-stone-700 text-2xl font-bold mt-1">START TIMER</span>
                             </>
                         )}
                     </div>
                     
-                    {/* Resume Button if unsaved draft exists */}
                     {!isSeizing && timer > 0 && !showForm && (
-                        <button 
-                            onClick={() => setShowForm(true)}
-                            className="mt-6 flex items-center justify-center gap-2 bg-[#fff8e6] text-[#b38f5a] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#fff0c7] transition-colors w-full max-w-xs border border-[#f5ebc9]"
-                        >
-                            <Edit3 className="w-5 h-5" />
-                            <span>未保存の記録があります (編集を再開)</span>
+                        <button onClick={() => setShowForm(true)} className="mt-6 flex items-center justify-center gap-2 bg-[#fff8e6] text-[#b38f5a] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#fff0c7] transition-colors w-full max-w-xs border border-[#f5ebc9]">
+                            <Edit3 className="w-5 h-5" /><span>未保存の記録があります (編集を再開)</span>
                         </button>
                     )}
 
-                    {/* Buttons during seizure */}
+                    {/* Camera & Emergency Section */}
                     {isSeizing && (
-                        <div className="mt-6 w-full flex flex-col items-center gap-3 px-8 animate-fadeIn">
+                        <div className="mt-6 w-full flex flex-col items-center gap-3 px-4 animate-fadeIn">
                             
-                            {/* Message Panel (Guidance) - Compact Version */}
-                            <div className="w-full bg-white border border-stone-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-[#8c7b99]"></div>
-                                <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-[#f0eef5] rounded-full shrink-0">
-                                         <Video className="w-5 h-5 text-[#8c7b99]" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-bold text-stone-700 text-sm">動画の撮影をお願いします</p>
-                                        <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                                            診断のために動画は重要です。ホームに戻り撮影してください。<br/>
-                                            <span className="text-[#6b8c6b] font-bold">※アプリを閉じても計測は続きます</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Camera Widget replaces the static message */}
+                            <CameraWidget isSeizing={isSeizing} onVideoAvailable={onVideoAvailable} />
 
-                            {/* Emergency Button - Only if 5 min passed */}
                             {isEmergency && profile.vetPhone && (
-                                <a 
-                                    href={`tel:${profile.vetPhone}`}
-                                    className="flex items-center justify-center gap-2 bg-[#f5ebeb] text-[#a86060] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#ffe0e0] transition-colors w-full max-w-xs animate-bounce mt-4"
-                                >
-                                    <Phone className="w-5 h-5" />
-                                    <span>{profile.vetName || '動物病院'}へ連絡</span>
+                                <a href={`tel:${profile.vetPhone}`} className="flex items-center justify-center gap-2 bg-[#f5ebeb] text-[#a86060] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#ffe0e0] transition-colors w-full max-w-xs animate-bounce mt-4">
+                                    <Phone className="w-5 h-5" /><span>{profile.vetName || '動物病院'}へ連絡</span>
                                 </a>
-                            )}
-                            
-                            {/* Warning if no phone set */}
-                            {isEmergency && !profile.vetPhone && (
-                                <div className="flex flex-col items-center gap-1 bg-stone-100 text-stone-500 px-6 py-3 rounded-xl font-bold w-full max-w-xs text-center mt-4">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4" />
-                                        <span>緊急連絡先未設定</span>
-                                    </div>
-                                    <span className="text-xs font-normal">設定タブから登録してください</span>
-                                </div>
                             )}
                         </div>
                     )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Daily Tip Card (Replaces Pressure) */}
+                <div className="grid grid-cols-2 gap-4 mt-6">
                     <Card className="flex flex-col items-center justify-center py-6 bg-[#f0eef5]/50 border-[#ded9e6] relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10">
-                            <Heart className="w-12 h-12 text-[#8c7b99]" />
-                        </div>
-                        <div className="flex items-center gap-2 text-[#8c7b99] mb-2 relative z-10">
-                            <Sparkles className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Today's Message</span>
-                        </div>
+                        <div className="absolute top-0 right-0 p-2 opacity-10"><Heart className="w-12 h-12 text-[#8c7b99]" /></div>
+                        <div className="flex items-center gap-2 text-[#8c7b99] mb-2 relative z-10"><Sparkles className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Today's Message</span></div>
                         <div className="text-center relative z-10">
-                            {dailyTip ? (
-                                <>
-                                    <p className="text-sm text-stone-700 font-medium leading-relaxed px-1">
-                                        {dailyTip.text}
-                                    </p>
-                                    {dailyTip.type === 'IVETF' && (
-                                        <span className="text-[10px] text-[#9f8ea8] mt-2 block font-bold">- IVETF Guideline -</span>
-                                    )}
-                                </>
-                            ) : (
-                                <span className="text-sm text-stone-400">Loading...</span>
-                            )}
+                            {dailyTip ? <p className="text-sm text-stone-700 font-medium leading-relaxed px-1">{dailyTip.text}</p> : <span className="text-sm text-stone-400">Loading...</span>}
                         </div>
                     </Card>
-                    
                     <Card className="flex flex-col items-center justify-center py-6">
-                        <div className="flex items-center gap-2 text-stone-500 mb-2">
-                            <Pill className="w-4 h-4" />
-                            <span className="text-xs font-medium">次の投薬</span>
-                        </div>
-                        {nextMedInfo ? (
-                            <>
-                                <span className="text-2xl font-bold text-stone-700">{nextMedInfo.time}</span>
-                                <span className="text-xs text-[#8c7b99] mt-1">あと {nextMedInfo.remaining}</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="text-lg font-bold text-stone-400">予定なし</span>
-                                <span className="text-xs text-stone-400 mt-1">すべて完了</span>
-                            </>
-                        )}
+                        <div className="flex items-center gap-2 text-stone-500 mb-2"><Pill className="w-4 h-4" /><span className="text-xs font-medium">次の投薬</span></div>
+                        {nextMedInfo ? <><span className="text-2xl font-bold text-stone-700">{nextMedInfo.time}</span><span className="text-xs text-[#8c7b99] mt-1">あと {nextMedInfo.remaining}</span></> : <><span className="text-lg font-bold text-stone-400">予定なし</span><span className="text-xs text-stone-400 mt-1">すべて完了</span></>}
                     </Card>
                 </div>
 
@@ -525,13 +455,12 @@
                     {seizureHistory.length > 0 ? (
                         <div className="space-y-3">
                             {seizureHistory.slice(0, 2).map(record => (
-                                <div 
-                                    key={record.id} 
-                                    onClick={() => setSelectedRecord(record)}
-                                    className="bg-white p-4 rounded-xl border-l-4 border-[#ded9e6] shadow-sm flex justify-between items-center cursor-pointer active:scale-95 transition-transform"
-                                >
+                                <div key={record.id} onClick={() => setSelectedRecord(record)} className="bg-white p-4 rounded-xl border-l-4 border-[#ded9e6] shadow-sm flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
                                     <div>
-                                        <div className="text-stone-800 font-bold">{record.date} {record.time}</div>
+                                        <div className="text-stone-800 font-bold flex items-center gap-2">
+                                            {record.date} {record.time}
+                                            {record.hasVideo && <Video className="w-4 h-4 text-[#6b8c6b]" />}
+                                        </div>
                                         <div className="text-stone-500 text-sm">{masterOptions.types.find(t => t.id === record.type)?.label || record.type}</div>
                                     </div>
                                     <div className="text-right flex items-center gap-2">
@@ -548,26 +477,13 @@
             </div>
         );
 
-        // 2. Form Modal (Modified to use persistent draft state)
-        const RecordForm = ({
-            timer,
-            draftSeizure,
-            setDraftSeizure,
-            masterOptions,
-            handleSaveSeizure,
-            setShowForm
-        }) => {
-            const updateDraft = (key, value) => {
-                setDraftSeizure(prev => ({ ...prev, [key]: value }));
-            };
-
+        // 2. Form Modal
+        const RecordForm = ({ timer, draftSeizure, setDraftSeizure, masterOptions, handleSaveSeizure, setShowForm, hasVideo }) => {
+            const updateDraft = (key, value) => setDraftSeizure(prev => ({ ...prev, [key]: value }));
             const toggleItem = (field, item) => {
                 setDraftSeizure(prev => {
                     const list = prev[field];
-                    return {
-                        ...prev,
-                        [field]: list.includes(item) ? list.filter(i => i !== item) : [...list, item]
-                    };
+                    return { ...prev, [field]: list.includes(item) ? list.filter(i => i !== item) : [...list, item] };
                 });
             };
 
@@ -577,138 +493,65 @@
                         <div className="bg-white w-full max-w-md mx-auto rounded-2xl overflow-hidden shadow-2xl">
                             <div className="bg-[#8c7b99] p-4 flex justify-between items-center">
                                 <h2 className="text-white font-bold text-lg">発作詳細の記録</h2>
-                                <button onClick={() => setShowForm(false)} className="text-[#f0eef5] hover:text-white">
-                                    <X className="w-6 h-6" />
-                                </button>
+                                <button onClick={() => setShowForm(false)} className="text-[#f0eef5] hover:text-white"><X className="w-6 h-6" /></button>
                             </div>
                             
                             <div className="p-6 space-y-6">
                                 <div className="text-center border-b border-stone-100 pb-4">
                                     <span className="text-sm text-stone-500 block mb-1">記録された持続時間</span>
                                     <span className="text-3xl font-mono font-bold text-stone-800">{formatTime(timer)}</span>
+                                    {hasVideo && (
+                                        <div className="mt-2 inline-flex items-center gap-1 bg-[#eaf5ea] text-[#6b8c6b] px-3 py-1 rounded-full text-xs font-bold">
+                                            <CheckCircle className="w-3 h-3" /> 動画保存済み
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Seizure Type */}
                                 <div>
                                     <label className="block text-sm font-bold text-stone-700 mb-2">発作タイプ</label>
-                                    <select 
-                                        className="w-full p-3 rounded-lg border border-stone-200 bg-stone-50 text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#8c7b99] mb-2"
-                                        value={draftSeizure.type}
-                                        onChange={(e) => updateDraft('type', e.target.value)}
-                                    >
-                                        {masterOptions.types.map(t => (
-                                            <option key={t.id} value={t.id}>{t.label}</option>
-                                        ))}
+                                    <select className="w-full p-3 rounded-lg border border-stone-200 bg-stone-50 text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#8c7b99] mb-2" value={draftSeizure.type} onChange={(e) => updateDraft('type', e.target.value)}>
+                                        {masterOptions.types.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                                     </select>
-                                    <input 
-                                        type="text" 
-                                        placeholder="詳細な様子 (例: 右半身のみの痙攣)" 
-                                        className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600"
-                                        value={draftSeizure.typeDetail}
-                                        onChange={(e) => updateDraft('typeDetail', e.target.value)}
-                                    />
+                                    <input type="text" placeholder="詳細な様子 (例: 右半身のみの痙攣)" className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600" value={draftSeizure.typeDetail} onChange={(e) => updateDraft('typeDetail', e.target.value)} />
                                 </div>
 
-                                {/* Pre-ictal Signs */}
                                 <div>
                                     <label className="block text-sm font-bold text-stone-700 mb-2">前兆・予兆</label>
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {masterOptions.preSigns.map(sign => (
-                                            <button 
-                                                key={sign}
-                                                onClick={() => toggleItem('preSigns', sign)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                                                    draftSeizure.preSigns.includes(sign) 
-                                                        ? 'bg-[#f0eef5] border-[#ded9e6] text-[#8c7b99]' 
-                                                        : 'bg-white border-stone-200 text-stone-500'
-                                                }`}
-                                            >
-                                                {sign}
-                                            </button>
+                                            <button key={sign} onClick={() => toggleItem('preSigns', sign)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${draftSeizure.preSigns.includes(sign) ? 'bg-[#f0eef5] border-[#ded9e6] text-[#8c7b99]' : 'bg-white border-stone-200 text-stone-500'}`}>{sign}</button>
                                         ))}
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        placeholder="詳細な前兆 (例: 30分前から落ち着きがない)" 
-                                        className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600"
-                                        value={draftSeizure.preSignDetail}
-                                        onChange={(e) => updateDraft('preSignDetail', e.target.value)}
-                                    />
+                                    <input type="text" placeholder="詳細な前兆" className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600" value={draftSeizure.preSignDetail} onChange={(e) => updateDraft('preSignDetail', e.target.value)} />
                                 </div>
 
-                                {/* Triggers */}
                                 <div>
                                     <label className="block text-sm font-bold text-stone-700 mb-2">考えられる誘因</label>
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {masterOptions.triggers.map(item => (
-                                            <button 
-                                                key={item}
-                                                onClick={() => toggleItem('triggers', item)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                                                    draftSeizure.triggers.includes(item) 
-                                                        ? 'bg-[#fff8e6] border-[#f5ebc9] text-[#b38f5a]' 
-                                                        : 'bg-white border-stone-200 text-stone-500'
-                                                }`}
-                                            >
-                                                {item}
-                                            </button>
+                                            <button key={item} onClick={() => toggleItem('triggers', item)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${draftSeizure.triggers.includes(item) ? 'bg-[#fff8e6] border-[#f5ebc9] text-[#b38f5a]' : 'bg-white border-stone-200 text-stone-500'}`}>{item}</button>
                                         ))}
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        placeholder="詳細な状況 (例: 花火大会の音)" 
-                                        className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600"
-                                        value={draftSeizure.triggerDetail}
-                                        onChange={(e) => updateDraft('triggerDetail', e.target.value)}
-                                    />
+                                    <input type="text" placeholder="詳細な状況" className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600" value={draftSeizure.triggerDetail} onChange={(e) => updateDraft('triggerDetail', e.target.value)} />
                                 </div>
 
-                                {/* Post-ictal */}
                                 <div>
                                     <label className="block text-sm font-bold text-stone-700 mb-2">発作後の様子</label>
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {masterOptions.postSigns.map(sign => (
-                                            <button 
-                                                key={sign}
-                                                onClick={() => toggleItem('postSigns', sign)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                                                    draftSeizure.postSigns.includes(sign) 
-                                                        ? 'bg-[#eef2f6] border-[#dbe3ea] text-[#7b8c99]' 
-                                                        : 'bg-white border-stone-200 text-stone-500'
-                                                }`}
-                                            >
-                                                {sign}
-                                            </button>
+                                            <button key={sign} onClick={() => toggleItem('postSigns', sign)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${draftSeizure.postSigns.includes(sign) ? 'bg-[#eef2f6] border-[#dbe3ea] text-[#7b8c99]' : 'bg-white border-stone-200 text-stone-500'}`}>{sign}</button>
                                         ))}
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        placeholder="詳細な様子 (例: 1時間ほどふらつき継続)" 
-                                        className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600"
-                                        value={draftSeizure.postSignDetail}
-                                        onChange={(e) => updateDraft('postSignDetail', e.target.value)}
-                                    />
+                                    <input type="text" placeholder="詳細な様子" className="w-full p-2 text-sm border-b border-stone-200 focus:border-[#8c7b99] outline-none text-stone-600" value={draftSeizure.postSignDetail} onChange={(e) => updateDraft('postSignDetail', e.target.value)} />
                                 </div>
 
-                                {/* Notes */}
                                 <div>
                                     <label className="block text-sm font-bold text-stone-700 mb-2">総合メモ</label>
-                                    <textarea 
-                                        className="w-full p-3 rounded-lg border border-stone-200 bg-stone-50 text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]"
-                                        rows="3"
-                                        placeholder="その他、気になったこと"
-                                        value={draftSeizure.notes}
-                                        onChange={(e) => updateDraft('notes', e.target.value)}
-                                    />
+                                    <textarea className="w-full p-3 rounded-lg border border-stone-200 bg-stone-50 text-stone-700 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" rows="3" placeholder="その他、気になったこと" value={draftSeizure.notes} onChange={(e) => updateDraft('notes', e.target.value)} />
                                 </div>
 
-                                {/* Save Button */}
-                                <button 
-                                    onClick={handleSaveSeizure}
-                                    className="w-full bg-[#8c7b99] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#7e6c8f] transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Save className="w-5 h-5" />
-                                    記録を保存
+                                <button onClick={handleSaveSeizure} className="w-full bg-[#8c7b99] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#7e6c8f] transition-colors flex items-center justify-center gap-2">
+                                    <Save className="w-5 h-5" /> 記録を保存
                                 </button>
                             </div>
                         </div>
@@ -720,14 +563,8 @@
         // 2.5 Detail Modal
         const SeizureDetailModal = ({ record, onClose, onDelete, onUpdate, masterOptions }) => {
             if (!record) return null;
-            
-            // 削除確認状態の管理
             const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-            const toggleHasVideo = () => {
-                const updatedRecord = { ...record, hasVideo: !record.hasVideo };
-                onUpdate(updatedRecord);
-            };
+            const toggleHasVideo = () => { onUpdate({ ...record, hasVideo: !record.hasVideo }); };
 
             return (
                 <div className="fixed inset-0 z-50 bg-[#eaf5ea]/95 overflow-y-auto flex items-center justify-center p-4">
@@ -737,120 +574,140 @@
                                 <div className="text-xs font-bold text-stone-500 uppercase tracking-wide">Seizure Record</div>
                                 <div className="text-stone-800 font-bold text-lg">{record.date} {record.time}</div>
                             </div>
-                            <button onClick={onClose} className="bg-white p-2 rounded-full text-stone-500 hover:bg-stone-200 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+                            <button onClick={onClose} className="bg-white p-2 rounded-full text-stone-500 hover:bg-stone-200 transition-colors"><X className="w-5 h-5" /></button>
                         </div>
-
                         <div className="p-6 space-y-6">
                             <div className="flex justify-center">
                                 <div className={`px-6 py-2 rounded-full font-mono text-xl font-bold flex items-center gap-2 ${record.duration > 300 ? 'bg-[#f5ebeb] text-[#a86060]' : 'bg-[#f0eef5] text-[#8c7b99]'}`}>
-                                    <Clock className="w-5 h-5" />
-                                    {Math.floor(record.duration / 60)}分{record.duration % 60}秒
+                                    <Clock className="w-5 h-5" />{Math.floor(record.duration / 60)}分{record.duration % 60}秒
                                 </div>
                             </div>
-
                             <div>
                                 <h4 className="text-xs font-bold text-stone-400 uppercase mb-1">発作タイプ</h4>
                                 <div className="bg-stone-50 p-3 rounded-lg border border-stone-100">
-                                    <p className="text-stone-800 font-medium">
-                                        {masterOptions.types.find(t => t.id === record.type)?.label || record.type}
-                                    </p>
+                                    <p className="text-stone-800 font-medium">{masterOptions.types.find(t => t.id === record.type)?.label || record.type}</p>
                                     {record.typeDetail && <p className="text-xs text-stone-500 mt-1 pt-1 border-t border-stone-200">{record.typeDetail}</p>}
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <h4 className="text-xs font-bold text-stone-400 uppercase mb-1">前兆</h4>
-                                    <div className="flex flex-wrap gap-1 mb-1">
-                                        {record.preSigns && record.preSigns.length > 0 ? (
-                                            record.preSigns.map((s, i) => <Badge key={i} type="purple">{s}</Badge>)
-                                        ) : <span className="text-xs text-stone-400">なし</span>}
-                                    </div>
+                                    <div className="flex flex-wrap gap-1 mb-1">{record.preSigns && record.preSigns.length > 0 ? record.preSigns.map((s, i) => <Badge key={i} type="purple">{s}</Badge>) : <span className="text-xs text-stone-400">なし</span>}</div>
                                     {record.preSignDetail && <p className="text-xs text-stone-500 bg-stone-50 p-1.5 rounded">{record.preSignDetail}</p>}
                                 </div>
                                 <div>
                                     <h4 className="text-xs font-bold text-stone-400 uppercase mb-1">発作後</h4>
-                                    <div className="flex flex-wrap gap-1 mb-1">
-                                        {record.postSigns && record.postSigns.length > 0 ? (
-                                            record.postSigns.map((s, i) => <Badge key={i} type="blue">{s}</Badge>)
-                                        ) : <span className="text-xs text-stone-400">なし</span>}
-                                    </div>
+                                    <div className="flex flex-wrap gap-1 mb-1">{record.postSigns && record.postSigns.length > 0 ? record.postSigns.map((s, i) => <Badge key={i} type="blue">{s}</Badge>) : <span className="text-xs text-stone-400">なし</span>}</div>
                                     {record.postSignDetail && <p className="text-xs text-stone-500 bg-stone-50 p-1.5 rounded">{record.postSignDetail}</p>}
                                 </div>
                             </div>
-
                             <div>
                                 <h4 className="text-xs font-bold text-stone-400 uppercase mb-1">誘因</h4>
-                                <div className="flex flex-wrap gap-1 mb-1">
-                                    {record.triggers && record.triggers.length > 0 ? (
-                                        record.triggers.map((s, i) => <Badge key={i} type="amber">{s}</Badge>)
-                                    ) : <span className="text-xs text-stone-400">なし</span>}
-                                </div>
+                                <div className="flex flex-wrap gap-1 mb-1">{record.triggers && record.triggers.length > 0 ? record.triggers.map((s, i) => <Badge key={i} type="amber">{s}</Badge>) : <span className="text-xs text-stone-400">なし</span>}</div>
                                 {record.triggerDetail && <p className="text-xs text-stone-500 bg-stone-50 p-1.5 rounded">{record.triggerDetail}</p>}
                             </div>
-
                             <div>
-                                <h4 className="text-xs font-bold text-stone-400 uppercase mb-1 flex items-center gap-1">
-                                    <FileText className="w-3 h-3" /> メモ
-                                </h4>
-                                <div className="bg-[#fff8e6] p-4 rounded-lg text-sm text-stone-700 leading-relaxed border border-[#f5ebc9]">
-                                    {record.notes || <span className="text-stone-400 italic">メモはありません</span>}
-                                </div>
+                                <h4 className="text-xs font-bold text-stone-400 uppercase mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> メモ</h4>
+                                <div className="bg-[#fff8e6] p-4 rounded-lg text-sm text-stone-700 leading-relaxed border border-[#f5ebc9]">{record.notes || <span className="text-stone-400 italic">メモはありません</span>}</div>
                             </div>
-                            
-                            {/* 動画連携エリア */}
                             <div className="border-t border-stone-100 pt-4">
-                                <h4 className="text-xs font-bold text-stone-400 uppercase mb-2 flex items-center gap-1">
-                                    <Video className="w-3 h-3" /> 動画記録
-                                </h4>
-                                
+                                <h4 className="text-xs font-bold text-stone-400 uppercase mb-2 flex items-center gap-1"><Video className="w-3 h-3" /> 動画記録</h4>
                                 <div className="bg-stone-50 p-4 rounded-lg border border-stone-100 flex items-center justify-between">
                                     <span className="text-sm font-bold text-stone-600">動画あり</span>
-                                    <button 
-                                        onClick={toggleHasVideo}
-                                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${record.hasVideo ? 'bg-[#6b8c6b]' : 'bg-stone-300'}`}
-                                    >
+                                    <button onClick={toggleHasVideo} className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${record.hasVideo ? 'bg-[#6b8c6b]' : 'bg-stone-300'}`}>
                                         <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${record.hasVideo ? 'translate-x-6' : ''}`}></div>
                                     </button>
                                 </div>
                             </div>
-
-                            {/* 削除ボタンエリア */}
                             <div className="pt-6 border-t border-stone-100 mt-2">
                                 {!isConfirmingDelete ? (
-                                    <button 
-                                        onClick={() => setIsConfirmingDelete(true)}
-                                        className="w-full text-[#a86060] hover:bg-[#f5ebeb] py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-bold"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        この記録を削除
-                                    </button>
+                                    <button onClick={() => setIsConfirmingDelete(true)} className="w-full text-[#a86060] hover:bg-[#f5ebeb] py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-bold"><Trash2 className="w-4 h-4" /> この記録を削除</button>
                                 ) : (
                                     <div className="bg-[#f5ebeb] p-4 rounded-xl text-center animate-pulse-fast">
-                                        <p className="text-[#a86060] text-sm font-bold mb-3">
-                                            本当に削除しますか？<br/>
-                                            <span className="text-xs font-normal">この操作は取り消せません。</span>
-                                        </p>
+                                        <p className="text-[#a86060] text-sm font-bold mb-3">本当に削除しますか？<br/><span className="text-xs font-normal">この操作は取り消せません。</span></p>
                                         <div className="flex gap-3">
-                                            <button 
-                                                onClick={() => setIsConfirmingDelete(false)}
-                                                className="flex-1 py-2 bg-white text-stone-600 rounded-lg text-sm font-bold shadow-sm"
-                                            >
-                                                キャンセル
-                                            </button>
-                                            <button 
-                                                onClick={() => onDelete(record.id)}
-                                                className="flex-1 py-2 bg-[#a86060] text-white rounded-lg text-sm font-bold shadow-sm hover:bg-[#8c4f4f]"
-                                            >
-                                                削除する
-                                            </button>
+                                            <button onClick={() => setIsConfirmingDelete(false)} className="flex-1 py-2 bg-white text-stone-600 rounded-lg text-sm font-bold shadow-sm">キャンセル</button>
+                                            <button onClick={() => onDelete(record.id)} className="flex-1 py-2 bg-[#a86060] text-white rounded-lg text-sm font-bold shadow-sm hover:bg-[#8c4f4f]">削除する</button>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. History View
+        const HistoryView = ({ seizureHistory, masterOptions, warningDays, toggleWarningDay, setSelectedRecord, setActiveTab }) => {
+            const DEMO_TODAY = new Date();
+            const [viewDate, setViewDate] = useState(new Date());
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const startDayOfWeek = firstDayOfMonth.getDay();
+            const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+            let daysSinceLast = '-';
+            if (seizureHistory.length > 0) {
+                const latestSeizure = seizureHistory.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b);
+                const lastDate = new Date(latestSeizure.date);
+                const todayCalc = new Date(DEMO_TODAY);
+                todayCalc.setHours(0,0,0,0); lastDate.setHours(0,0,0,0);
+                const diffTime = todayCalc - lastDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                daysSinceLast = diffDays >= 0 ? diffDays : 0;
+            }
+
+            return (
+                <div className="space-y-6 pb-20">
+                    <header className="mb-4"><h1 className="text-2xl font-bold text-stone-800">記録ログ</h1><p className="text-sm text-stone-500">発作履歴と傾向分析</p></header>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Card className="bg-[#8c7b99] text-white border-none"><div className="text-[#e6e2ea] text-xs mb-1">今月の発作回数</div><div className="text-3xl font-bold">{seizureHistory.filter(s => s.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)).length} <span className="text-sm font-normal"> 回</span></div></Card>
+                        <Card><div className="text-stone-500 text-xs mb-1">前回からの間隔</div><div className="text-xl font-bold text-stone-700">{daysSinceLast} <span className="text-sm font-normal">日</span></div></Card>
+                    </div>
+                    <Card>
+                        <div className="flex justify-between items-center mb-4 px-2">
+                            <button onClick={prevMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400"><ChevronLeft className="w-5 h-5" /></button>
+                            <h3 className="font-bold text-stone-700 flex items-center gap-2 text-lg"><CalendarIcon className="w-5 h-5 text-[#8c7b99]" /> {year}年 {month + 1}月</h3>
+                            <button onClick={nextMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400"><ChevronRight className="w-5 h-5" /></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2 text-stone-400 font-medium"><div className="text-[#a86060]">S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div className="text-[#7b8c99]">S</div></div>
+                        <div className="grid grid-cols-7 gap-1 text-center">
+                            {[...Array(startDayOfWeek)].map((_, i) => <div key={`empty-${i}`} className="aspect-square"></div>)}
+                            {[...Array(daysInMonth)].map((_, i) => {
+                                const day = i + 1;
+                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const hasSeizure = seizureHistory.some(s => s.date === dateStr);
+                                const isWarning = warningDays.includes(dateStr);
+                                const isToday = DEMO_TODAY.getFullYear() === year && DEMO_TODAY.getMonth() === month && DEMO_TODAY.getDate() === day;
+                                let dayClass = 'text-stone-600 hover:bg-stone-50 cursor-pointer';
+                                if (hasSeizure) dayClass = 'bg-[#8c7b99] text-white font-bold shadow-md cursor-pointer';
+                                else if (isWarning) dayClass = 'bg-[#fff8e6] text-[#b38f5a] font-bold border border-[#f5ebc9] cursor-pointer';
+                                return <div key={i} onClick={() => hasSeizure ? setSelectedRecord(seizureHistory.find(s => s.date === dateStr)) : toggleWarningDay(dateStr)} className={`aspect-square flex items-center justify-center rounded-full text-sm transition-all ${dayClass} ${isToday ? 'ring-2 ring-[#d8d3df] font-bold z-10 relative' : ''}`}>{day}</div>;
+                            })}
+                        </div>
+                    </Card>
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-stone-700 flex items-center gap-2">詳細履歴 <span className="text-xs font-normal text-stone-400 bg-stone-100 px-2 py-1 rounded-full">タップして詳細を表示</span></h3>
+                        {[...seizureHistory].sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time)).map(record => (
+                            <div key={record.id} onClick={() => setSelectedRecord(record)} className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 cursor-pointer hover:border-[#ded9e6] hover:shadow-md transition-all active:scale-[0.98] group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded text-xs font-mono">{record.date}</span>
+                                        <span className="text-stone-800 font-bold">{record.time}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {record.hasVideo && <div className="bg-[#eaf5ea] p-1 rounded-full text-[#6b8c6b]"><Video className="w-3 h-3" /></div>}
+                                        <Badge type={record.duration > 300 ? 'red' : 'purple'}>{Math.floor(record.duration / 60)}分{record.duration % 60}秒</Badge>
+                                        <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-[#8c7b99] transition-colors" />
+                                    </div>
+                                </div>
+                                <div className="mb-2"><span className="text-sm text-stone-700 font-medium">{masterOptions.types.find(t => t.id === record.type)?.label || record.type}</span></div>
+                                {record.typeDetail && <div className="text-xs text-stone-400 mb-2 truncate">{record.typeDetail}</div>}
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
@@ -859,793 +716,173 @@
         // 4. Meds View
         const MedsView = ({ meds, handleDeleteMed, toggleMedTaken, setShowMedForm }) => (
             <div className="space-y-6 pb-20">
-                <header className="mb-4">
-                    <h1 className="text-2xl font-bold text-stone-800">お薬管理</h1>
-                    <p className="text-sm text-stone-500">アドヒアランスと在庫管理</p>
-                </header>
+                <header className="mb-4"><h1 className="text-2xl font-bold text-stone-800">お薬管理</h1><p className="text-sm text-stone-500">アドヒアランスと在庫管理</p></header>
                 <div className="space-y-4">
                     {meds.map(med => {
-                        // Color mapping based on med.color selection (Added green/neutral styles)
-                        const colorMap = {
-                            purple: { border: 'border-l-[#f0eef5]', btn: 'bg-[#f0eef5] hover:bg-[#ded9e6] border-[#ded9e6] text-[#8c7b99]' },
-                            blue: { border: 'border-l-[#eef2f6]', btn: 'bg-[#eef2f6] hover:bg-[#dbe3ea] border-[#dbe3ea] text-[#7b8c99]' },
-                            green: { border: 'border-l-[#eaf5ea]', btn: 'bg-[#eaf5ea] hover:bg-[#d0e6d0] border-[#d0e6d0] text-[#6b8c6b]' },
-                            neutral: { border: 'border-l-stone-200', btn: 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-600' },
-                        };
-                        
-                        const styles = colorMap[med.color] || colorMap.purple;
-                        
+                        const styles = { purple: { border: 'border-l-[#f0eef5]', btn: 'bg-[#f0eef5] hover:bg-[#ded9e6] border-[#ded9e6] text-[#8c7b99]' }, blue: { border: 'border-l-[#eef2f6]', btn: 'bg-[#eef2f6] hover:bg-[#dbe3ea] border-[#dbe3ea] text-[#7b8c99]' } }[med.color] || { border: 'border-l-[#f0eef5]', btn: 'bg-[#f0eef5]' };
                         const displayRemaining = Number.isInteger(med.remaining) ? med.remaining : med.remaining.toFixed(1);
-
                         return (
                             <Card key={med.id} className={`border-l-4 ${styles.border} relative group`}>
-                                <button onClick={() => handleDeleteMed(med.id)} className="absolute top-2 right-2 p-2 text-stone-300 hover:text-[#a86060] transition-colors opacity-0 group-hover:opacity-100">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                                <div className="flex justify-between items-start pr-8">
-                                    <div>
-                                        <h3 className="font-bold text-stone-800 text-lg">{med.name}</h3>
-                                        <p className="text-sm text-stone-500">{med.dosage} / 1回</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <Badge type={med.remaining < 7 ? "red" : "green"}>残り: {displayRemaining}日分</Badge>
-                                    </div>
-                                </div>
-                                
-                                {med.remaining < 7 && (
-                                    <div className="mt-2 text-xs text-[#a86060] flex items-center gap-1">
-                                        <AlertTriangle className="w-3 h-3" />
-                                        <span>そろそろ病院へ連絡が必要です</span>
-                                    </div>
-                                )}
-
-                                <div className="mt-4 pt-4 border-t border-stone-100">
-                                    <div className="flex gap-3 overflow-x-auto pb-1">
-                                        {med.times.map((time, idx) => {
-                                            const isTaken = med.takenToday.includes(time);
-                                            return (
-                                                <button 
-                                                    key={idx} 
-                                                    onClick={() => toggleMedTaken(med.id, time)}
-                                                    className={`flex-1 min-w-[80px] py-2 rounded-lg flex flex-col items-center gap-1 transition-colors border ${isTaken ? styles.btn : 'bg-white border-stone-200 text-stone-400'}`}
-                                                >
-                                                    {isTaken ? <CheckCircle className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-stone-300"></div>}
-                                                    <span className="text-xs font-bold">{time} {isTaken ? '(済)' : ''}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                <button onClick={() => handleDeleteMed(med.id)} className="absolute top-2 right-2 p-2 text-stone-300 hover:text-[#a86060] transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                                <div className="flex justify-between items-start pr-8"><div><h3 className="font-bold text-stone-800 text-lg">{med.name}</h3><p className="text-sm text-stone-500">{med.dosage} / 1回</p></div><div className="text-right"><Badge type={med.remaining < 7 ? "red" : "green"}>残り: {displayRemaining}日分</Badge></div></div>
+                                {med.remaining < 7 && <div className="mt-2 text-xs text-[#a86060] flex items-center gap-1"><AlertTriangle className="w-3 h-3" /><span>そろそろ病院へ連絡が必要です</span></div>}
+                                <div className="mt-4 pt-4 border-t border-stone-100"><div className="flex gap-3 overflow-x-auto pb-1">{med.times.map((time, idx) => { const isTaken = med.takenToday.includes(time); return <button key={idx} onClick={() => toggleMedTaken(med.id, time)} className={`flex-1 min-w-[80px] py-2 rounded-lg flex flex-col items-center gap-1 transition-colors border ${isTaken ? styles.btn : 'bg-white border-stone-200 text-stone-400'}`}>{isTaken ? <CheckCircle className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-stone-300"></div>}<span className="text-xs font-bold">{time} {isTaken ? '(済)' : ''}</span></button>; })}</div></div>
                             </Card>
                         );
                     })}
                 </div>
-                <button onClick={() => setShowMedForm(true)} className="w-full py-3 border-2 border-dashed border-stone-300 text-stone-500 rounded-xl font-medium hover:bg-stone-50 flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4" /> お薬の追加
-                </button>
+                <button onClick={() => setShowMedForm(true)} className="w-full py-3 border-2 border-dashed border-stone-300 text-stone-500 rounded-xl font-medium hover:bg-stone-50 flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> お薬の追加</button>
             </div>
         );
-        
+
         const AddMedForm = ({ handleAddMed, setShowMedForm }) => {
-            const [medData, setMedData] = useState({
-                name: '',
-                dosage: '',
-                remaining: 14,
-                times: '07:00, 19:00', // Simple text input for demo
-                color: 'purple'
-            });
-        
-            const handleSubmit = () => {
-                if (!medData.name) return;
-                const newMed = {
-                    ...medData,
-                    times: medData.times.split(',').map(t => t.trim())
-                };
-                handleAddMed(newMed);
-            };
-        
+            const [medData, setMedData] = useState({ name: '', dosage: '', remaining: 14, times: '07:00, 19:00', color: 'purple' });
             return (
                 <div className="fixed inset-0 z-50 bg-[#eaf5ea]/95 overflow-y-auto flex items-center justify-center px-4">
                     <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
-                        <div className="bg-[#8c7b99] p-4 flex justify-between items-center">
-                            <h2 className="text-white font-bold text-lg">お薬を追加</h2>
-                            <button onClick={() => setShowMedForm(false)} className="text-[#f0eef5] hover:text-white">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-                        
+                        <div className="bg-[#8c7b99] p-4 flex justify-between items-center"><h2 className="text-white font-bold text-lg">お薬を追加</h2><button onClick={() => setShowMedForm(false)} className="text-[#f0eef5] hover:text-white"><X className="w-6 h-6" /></button></div>
                         <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-stone-500 mb-1">薬剤名</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none"
-                                    placeholder="例: フェノバルビタール"
-                                    value={medData.name}
-                                    onChange={e => setMedData({...medData, name: e.target.value})}
-                                />
-                            </div>
+                            <div><label className="block text-xs font-bold text-stone-500 mb-1">薬剤名</label><input type="text" className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none" value={medData.name} onChange={e => setMedData({...medData, name: e.target.value})} /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">用量</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none"
-                                        placeholder="例: 30mg"
-                                        value={medData.dosage}
-                                        onChange={e => setMedData({...medData, dosage: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">在庫日数</label>
-                                    <input 
-                                        type="number" 
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none"
-                                        value={medData.remaining}
-                                        onChange={e => setMedData({...medData, remaining: parseInt(e.target.value) || 0})}
-                                    />
-                                </div>
+                                <div><label className="block text-xs font-bold text-stone-500 mb-1">用量</label><input type="text" className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none" value={medData.dosage} onChange={e => setMedData({...medData, dosage: e.target.value})} /></div>
+                                <div><label className="block text-xs font-bold text-stone-500 mb-1">在庫日数</label><input type="number" className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none" value={medData.remaining} onChange={e => setMedData({...medData, remaining: parseInt(e.target.value) || 0})} /></div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-stone-500 mb-1">服用時刻 (カンマ区切り)</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none"
-                                    placeholder="例: 07:00, 19:00"
-                                    value={medData.times}
-                                    onChange={e => setMedData({...medData, times: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-stone-500 mb-1">カラータグ</label>
-                                <div className="flex gap-2">
-                                    {['purple', 'blue', 'green', 'neutral'].map(color => {
-                                    const colorMap = {
-                                        purple: '#8c7b99',
-                                        blue: '#7b8c99',
-                                        green: '#6b8c6b',
-                                        neutral: '#a8a29e'
-                                    };
-                                    return (
-                                        <button 
-                                        key={color}
-                                        onClick={() => setMedData({...medData, color})}
-                                        className={`w-8 h-8 rounded-full border-2 ${medData.color === color ? 'border-stone-800' : 'border-transparent'}`}
-                                        style={{ backgroundColor: colorMap[color] }}
-                                        />
-                                    );
-                                    })}
-                                </div>
-                            </div>
-            
-                            <button 
-                                onClick={handleSubmit}
-                                className="w-full bg-[#8c7b99] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#7e6c8f] transition-colors flex items-center justify-center gap-2 mt-4"
-                            >
-                                <Plus className="w-5 h-5" />
-                                追加する
-                            </button>
+                            <div><label className="block text-xs font-bold text-stone-500 mb-1">服用時刻</label><input type="text" className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#8c7b99] outline-none" value={medData.times} onChange={e => setMedData({...medData, times: e.target.value})} /></div>
+                            <button onClick={() => handleAddMed({ ...medData, times: medData.times.split(',').map(t => t.trim()) })} className="w-full bg-[#8c7b99] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#7e6c8f] transition-colors flex items-center justify-center gap-2 mt-4"><Plus className="w-5 h-5" /> 追加する</button>
                         </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // 3. History View
-        const HistoryView = ({
-            seizureHistory,
-            masterOptions,
-            warningDays,
-            toggleWarningDay,
-            setSelectedRecord,
-            setActiveTab
-        }) => {
-            const DEMO_TODAY = new Date(); // Use current date directly
-            
-            // カレンダーの表示月を管理するState
-            const [viewDate, setViewDate] = useState(new Date());
-
-            let daysSinceLast = '-';
-            if (seizureHistory.length > 0) {
-                const latestSeizure = seizureHistory.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b);
-                const lastDate = new Date(latestSeizure.date);
-                
-                const todayCalc = new Date(DEMO_TODAY);
-                todayCalc.setHours(0,0,0,0);
-                lastDate.setHours(0,0,0,0);
-
-                const diffTime = todayCalc - lastDate;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                daysSinceLast = diffDays >= 0 ? diffDays : 0;
-            }
-
-            // カレンダー生成ロジック
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth(); // 0-11
-            
-            // 月の初日と日数
-            const firstDayOfMonth = new Date(year, month, 1);
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const startDayOfWeek = firstDayOfMonth.getDay(); // 0(Sun) - 6(Sat)
-
-            const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-            const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-
-            return (
-                <div className="space-y-6 pb-20">
-                    <header className="mb-4">
-                        <h1 className="text-2xl font-bold text-stone-800">記録ログ</h1>
-                        <p className="text-sm text-stone-500">発作履歴と傾向分析</p>
-                    </header>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <Card className="bg-[#8c7b99] text-white border-none">
-                            <div className="text-[#e6e2ea] text-xs mb-1">今月の発作回数</div>
-                            <div className="text-3xl font-bold">
-                                {seizureHistory.filter(s => s.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)).length} 
-                                <span className="text-sm font-normal"> 回</span>
-                            </div>
-                        </Card>
-                        <Card>
-                            <div className="text-stone-500 text-xs mb-1">前回からの間隔</div>
-                            <div className="text-xl font-bold text-stone-700">{daysSinceLast} <span className="text-sm font-normal">日</span></div>
-                        </Card>
-                    </div>
-
-                    <Card>
-                        <div className="flex justify-between items-center mb-4 px-2">
-                            <button onClick={prevMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400">
-                                <ChevronLeft className="w-5 h-5" />
-                            </button>
-                            <h3 className="font-bold text-stone-700 flex items-center gap-2 text-lg">
-                                <CalendarIcon className="w-5 h-5 text-[#8c7b99]" />
-                                {year}年 {month + 1}月
-                            </h3>
-                            <button onClick={nextMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400">
-                                <ChevronRight className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2 text-stone-400 font-medium">
-                            <div className="text-[#a86060]">S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div className="text-[#7b8c99]">S</div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-center">
-                            {/* 空白セル（月の開始曜日まで） */}
-                            {[...Array(startDayOfWeek)].map((_, i) => (
-                                <div key={`empty-${i}`} className="aspect-square"></div>
-                            ))}
-                            
-                            {/* 日付セル */}
-                            {[...Array(daysInMonth)].map((_, i) => {
-                                const day = i + 1;
-                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                const hasSeizure = seizureHistory.some(s => s.date === dateStr);
-                                const isWarning = warningDays.includes(dateStr);
-                                
-                                const isToday = DEMO_TODAY.getFullYear() === year && DEMO_TODAY.getMonth() === month && DEMO_TODAY.getDate() === day;
-
-                                let dayClass = 'text-stone-600 hover:bg-stone-50 cursor-pointer';
-                                if (hasSeizure) {
-                                    dayClass = 'bg-[#8c7b99] text-white font-bold shadow-md cursor-pointer';
-                                } else if (isWarning) {
-                                    dayClass = 'bg-[#fff8e6] text-[#b38f5a] font-bold border border-[#f5ebc9] cursor-pointer';
-                                }
-                                
-                                // Muted ring for today
-                                const todayStyle = isToday ? 'ring-2 ring-[#d8d3df] font-bold z-10 relative' : '';
-
-                                return (
-                                    <div 
-                                        key={i} 
-                                        onClick={() => hasSeizure ? setSelectedRecord(seizureHistory.find(s => s.date === dateStr)) : toggleWarningDay(dateStr)}
-                                        className={`
-                                            aspect-square flex items-center justify-center rounded-full text-sm transition-all
-                                            ${dayClass} ${todayStyle}
-                                        `}
-                                    >
-                                        {day}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="mt-4 flex gap-4 text-stone-500 justify-center flex-wrap" style={{fontSize: '10px'}}>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#8c7b99]"></div>発作あり</div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#fff8e6] border border-[#f5ebc9]"></div>注意日</div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full border-2 border-[#d8d3df]"></div>今日</div>
-                        </div>
-                    </Card>
-
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-stone-700 flex items-center gap-2">
-                            詳細履歴 <span className="text-xs font-normal text-stone-400 bg-stone-100 px-2 py-1 rounded-full">タップして詳細を表示</span>
-                        </h3>
-                        {/* 表示月に関連する履歴のみを表示、なければ直近を表示するロジックに変更も可能だが、
-                            ここでは「全履歴」または「その月の履歴」のどちらが親切かを考慮。
-                            ログ画面なので、スクロールで見れる全履歴（新しい順）の方が使い勝手が良いと判断し維持。
-                        */}
-                        {/* ソート処理を配列コピーに対して行うように修正 */}
-                        {[...seizureHistory]
-                            .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                            .map(record => (
-                            <div 
-                                key={record.id} 
-                                onClick={() => setSelectedRecord(record)}
-                                className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 cursor-pointer hover:border-[#ded9e6] hover:shadow-md transition-all active:scale-[0.98] group"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded text-xs font-mono">{record.date}</span>
-                                        <span className="text-stone-800 font-bold">{record.time}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {/* 動画アイコンの追加 */}
-                                        {record.hasVideo && (
-                                            <div className="bg-[#eaf5ea] p-1 rounded-full text-[#6b8c6b]">
-                                                <Video className="w-3 h-3" />
-                                            </div>
-                                        )}
-                                        <Badge type={record.duration > 300 ? 'red' : 'purple'}>
-                                            {Math.floor(record.duration / 60)}分{record.duration % 60}秒
-                                        </Badge>
-                                        <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-[#8c7b99] transition-colors" />
-                                    </div>
-                                </div>
-                                
-                                <div className="mb-2">
-                                    <span className="text-sm text-stone-700 font-medium">
-                                        {masterOptions.types.find(t => t.id === record.type)?.label || record.type}
-                                    </span>
-                                </div>
-                                {record.typeDetail && (
-                                    <div className="text-xs text-stone-400 mb-2 truncate">
-                                        {record.typeDetail}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
                     </div>
                 </div>
             );
         };
 
         // 5. Profile & Settings View
-        const ProfileView = ({ 
-            profile, 
-            setProfile, 
-            masterOptions, 
-            addMasterOption, 
-            removeMasterOption 
-        }) => {
+        const ProfileView = ({ profile, setProfile, masterOptions, addMasterOption, removeMasterOption }) => {
             const [tempProfile, setTempProfile] = useState(profile);
             const [isSaved, setIsSaved] = useState(false);
             const [newItemText, setNewItemText] = useState('');
             const [manageCategory, setManageCategory] = useState(null);
-
-            useEffect(() => {
-                setTempProfile(profile);
-            }, [profile]);
-
-            const handleChange = (e) => {
-                const { name, value } = e.target;
-                setTempProfile(prev => ({ ...prev, [name]: value }));
-                setIsSaved(false);
-            };
-
-            // Image handling with Base64 conversion for persistence
-            const handleImageChange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                        alert("画像サイズが大きすぎます。5MB以下の画像を選択してください。");
-                        return;
-                    }
-                    // Resize image using the helper function
-                    resizeImage(file, 150, 150, (dataUrl) => {
-                         setTempProfile(prev => ({ ...prev, image: dataUrl }));
-                         setIsSaved(false);
-                    });
-                }
-            };
-
-            const handleSave = () => {
-                setProfile(tempProfile);
-                setIsSaved(true);
-                setTimeout(() => setIsSaved(false), 2000);
-            };
+            useEffect(() => { setTempProfile(profile); }, [profile]);
+            const handleChange = (e) => { setTempProfile(prev => ({ ...prev, [e.target.name]: e.target.value })); setIsSaved(false); };
+            const handleImageChange = (e) => { if (e.target.files[0]) resizeImage(e.target.files[0], 150, 150, (dataUrl) => { setTempProfile(prev => ({ ...prev, image: dataUrl })); setIsSaved(false); }); };
+            const handleSave = () => { setProfile(tempProfile); setIsSaved(true); setTimeout(() => setIsSaved(false), 2000); };
 
             return (
                 <div className="space-y-6 pb-20">
-                    <header className="mb-4">
-                        <h1 className="text-2xl font-bold text-stone-800">設定</h1>
-                        <p className="text-sm text-stone-500">プロフィールと記録項目の管理</p>
-                    </header>
-
-                    {/* Photo Upload Area */}
+                    <header className="mb-4"><h1 className="text-2xl font-bold text-stone-800">設定</h1><p className="text-sm text-stone-500">プロフィールと記録項目の管理</p></header>
                     <div className="flex flex-col items-center mb-6">
                         <div className="relative w-32 h-32 mb-2 group">
-                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#ded9e6] shadow-sm bg-stone-100 flex items-center justify-center">
-                                {tempProfile.image ? (
-                                    <img src={tempProfile.image} alt="Profile" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Dog className="w-12 h-12 text-[#8c7b99]" />
-                                )}
-                            </div>
-                            <label className="absolute bottom-0 right-0 bg-[#8c7b99] p-2 rounded-full text-white shadow-md cursor-pointer hover:bg-[#7e6c8f] transition-colors">
-                                <Camera className="w-5 h-5" />
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                            </label>
+                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#ded9e6] shadow-sm bg-stone-100 flex items-center justify-center">{tempProfile.image ? <img src={tempProfile.image} alt="Profile" className="w-full h-full object-cover" /> : <Dog className="w-12 h-12 text-[#8c7b99]" />}</div>
+                            <label className="absolute bottom-0 right-0 bg-[#8c7b99] p-2 rounded-full text-white shadow-md cursor-pointer hover:bg-[#7e6c8f] transition-colors"><Camera className="w-5 h-5" /><input type="file" accept="image/*" className="hidden" onChange={handleImageChange} /></label>
                         </div>
                     </div>
-
                     <div className="space-y-4">
                         <Card>
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <Dog className="w-4 h-4 text-[#8c7b99]" />
-                                基本情報
-                            </h3>
+                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2"><Dog className="w-4 h-4 text-[#8c7b99]" /> 基本情報</h3>
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">愛犬の名前</label>
-                                    <input 
-                                        type="text" 
-                                        name="name" 
-                                        value={tempProfile.name} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.name}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                    />
-                                </div>
-                                
+                                <div><label className="block text-xs font-bold text-stone-500 mb-1">愛犬の名前</label><input type="text" name="name" value={tempProfile.name} onChange={handleChange} placeholder={EXAMPLE_PROFILE.name} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" /></div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">犬種</label>
-                                        <input 
-                                            type="text" 
-                                            name="breed" 
-                                            value={tempProfile.breed} 
-                                            onChange={handleChange} 
-                                            placeholder={EXAMPLE_PROFILE.breed}
-                                            className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                        />
-                                    </div>
+                                    <div><label className="block text-xs font-bold text-stone-500 mb-1">犬種</label><input type="text" name="breed" value={tempProfile.breed} onChange={handleChange} placeholder={EXAMPLE_PROFILE.breed} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" /></div>
                                     <div>
                                         <label className="block text-xs font-bold text-stone-500 mb-1">性別</label>
-                                        <div className="flex gap-2">
-                                        {['Male', 'Female'].map(g => (
-                                            <button 
-                                                key={g}
-                                                onClick={() => { setTempProfile({...tempProfile, gender: g}); setIsSaved(false); }}
-                                                className={`flex-1 py-3 rounded-lg text-sm font-bold border transition-colors ${
-                                                    tempProfile.gender === g 
-                                                        ? 'bg-[#f0eef5] border-[#ded9e6] text-[#8c7b99]' 
-                                                        : 'bg-stone-50 border-stone-200 text-stone-400'
-                                                }`}
-                                            >
-                                                {g === 'Male' ? '♂' : '♀'}
-                                            </button>
-                                        ))}
-                                        </div>
+                                        <div className="flex gap-2">{['Male', 'Female'].map(g => <button key={g} onClick={() => { setTempProfile({...tempProfile, gender: g}); setIsSaved(false); }} className={`flex-1 py-3 rounded-lg text-sm font-bold border transition-colors ${tempProfile.gender === g ? 'bg-[#f0eef5] border-[#ded9e6] text-[#8c7b99]' : 'bg-stone-50 border-stone-200 text-stone-400'}`}>{g === 'Male' ? '♂' : '♀'}</button>)}</div>
                                     </div>
                                 </div>
-
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">体重 (kg)</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.1" 
-                                            name="weight" 
-                                            value={tempProfile.weight} 
-                                            onChange={handleChange} 
-                                            placeholder={EXAMPLE_PROFILE.weight}
-                                            className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">誕生日</label>
-                                        <input type="date" name="birthday" value={tempProfile.birthday} onChange={handleChange} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">発症年月 (初発)</label>
-                                    <input type="date" name="onset" value={tempProfile.onset} onChange={handleChange} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" />
+                                    <div><label className="block text-xs font-bold text-stone-500 mb-1">体重 (kg)</label><input type="number" step="0.1" name="weight" value={tempProfile.weight} onChange={handleChange} placeholder={EXAMPLE_PROFILE.weight} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" /></div>
+                                    <div><label className="block text-xs font-bold text-stone-500 mb-1">誕生日</label><input type="date" name="birthday" value={tempProfile.birthday} onChange={handleChange} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" /></div>
                                 </div>
                             </div>
                         </Card>
-
                         <Card className="border-l-4 border-l-[#c55b5b]">
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-[#c55b5b]" /> 緊急連絡先
-                            </h3>
+                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2"><MapPin className="w-4 h-4 text-[#c55b5b]" /> 緊急連絡先</h3>
                             <div className="space-y-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">病院名</label>
-                                    <input 
-                                        type="text" 
-                                        name="vetName" 
-                                        value={tempProfile.vetName} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.vetName}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">電話番号</label>
-                                    <input 
-                                        type="tel" 
-                                        name="vetPhone" 
-                                        value={tempProfile.vetPhone} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.vetPhone}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none font-mono text-lg"
-                                    />
-                                    <p className="text-xs text-stone-400 mt-2">※発作時の緊急通報ボタンで使用されます</p>
-                                </div>
+                                <div><label className="block text-xs font-bold text-stone-500 mb-1">病院名</label><input type="text" name="vetName" value={tempProfile.vetName} onChange={handleChange} placeholder={EXAMPLE_PROFILE.vetName} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none" /></div>
+                                <div><label className="block text-xs font-bold text-stone-500 mb-1">電話番号</label><input type="tel" name="vetPhone" value={tempProfile.vetPhone} onChange={handleChange} placeholder={EXAMPLE_PROFILE.vetPhone} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none font-mono text-lg" /></div>
                             </div>
                         </Card>
-
                         <Card className="border-l-4 border-l-[#ded9e6]">
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <List className="w-4 h-4 text-[#8c7b99]" /> 記録項目の管理
-                            </h3>
-                            <div className="text-xs text-stone-400 mb-4">よく使う項目をあらかじめ登録・削除できます。</div>
-                            
-                            <MasterListManager 
-                                category="types" 
-                                title="発作タイプ" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="preSigns" 
-                                title="前兆・予兆" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="triggers" 
-                                title="誘因 (トリガー)" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="postSigns" 
-                                title="発作後の様子" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
+                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2"><List className="w-4 h-4 text-[#8c7b99]" /> 記録項目の管理</h3>
+                            <MasterListManager category="types" title="発作タイプ" manageCategory={manageCategory} setManageCategory={setManageCategory} masterOptions={masterOptions} removeMasterOption={removeMasterOption} newItemText={newItemText} setNewItemText={setNewItemText} addMasterOption={addMasterOption} />
+                            <MasterListManager category="preSigns" title="前兆・予兆" manageCategory={manageCategory} setManageCategory={setManageCategory} masterOptions={masterOptions} removeMasterOption={removeMasterOption} newItemText={newItemText} setNewItemText={setNewItemText} addMasterOption={addMasterOption} />
+                            <MasterListManager category="triggers" title="誘因 (トリガー)" manageCategory={manageCategory} setManageCategory={setManageCategory} masterOptions={masterOptions} removeMasterOption={removeMasterOption} newItemText={newItemText} setNewItemText={setNewItemText} addMasterOption={addMasterOption} />
+                            <MasterListManager category="postSigns" title="発作後の様子" manageCategory={manageCategory} setManageCategory={setManageCategory} masterOptions={masterOptions} removeMasterOption={removeMasterOption} newItemText={newItemText} setNewItemText={setNewItemText} addMasterOption={addMasterOption} />
                         </Card>
-
-                        <button 
-                            onClick={handleSave}
-                            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2
-                                ${isSaved ? 'bg-[#6b8c6b]' : 'bg-[#8c7b99] hover:bg-[#7e6c8f]'}
-                            `}
-                        >
-                            {isSaved ? <><CheckCircle className="w-5 h-5"/> 保存しました</> : <><Save className="w-5 h-5"/> 設定を保存</>}
-                        </button>
+                        <button onClick={handleSave} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${isSaved ? 'bg-[#6b8c6b]' : 'bg-[#8c7b99] hover:bg-[#7e6c8f]'}`}>{isSaved ? <><CheckCircle className="w-5 h-5"/> 保存しました</> : <><Save className="w-5 h-5"/> 設定を保存</>}</button>
                     </div>
                 </div>
             );
         };
 
         // --- Main Application Component ---
-
         function App() {
             const [activeTab, setActiveTab] = useState('home');
+            const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE)) || INITIAL_PROFILE);
+            const [meds, setMeds] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.MEDS)) || INITIAL_MEDS);
+            const [masterOptions, setMasterOptions] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.OPTIONS)) || { types: DEFAULT_SEIZURE_TYPES, preSigns: DEFAULT_PRE_ICTAL_SIGNS, postSigns: DEFAULT_POST_ICTAL_SIGNS, triggers: DEFAULT_TRIGGERS });
+            const [seizureHistory, setSeizureHistory] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)) || []);
+            const [warningDays, setWarningDays] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.WARNINGS)) || ['2026-02-05', '2026-02-20']);
             
-            // Initialize states from local storage
-            const [profile, setProfile] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-                return saved ? JSON.parse(saved) : INITIAL_PROFILE;
-            });
+            useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile)); } catch (e) { console.error(e); } }, [profile]);
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.MEDS, JSON.stringify(meds)), [meds]);
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.OPTIONS, JSON.stringify(masterOptions)), [masterOptions]);
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(seizureHistory)), [seizureHistory]);
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.WARNINGS, JSON.stringify(warningDays)), [warningDays]);
 
-            const [meds, setMeds] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.MEDS);
-                return saved ? JSON.parse(saved) : INITIAL_MEDS;
-            });
-            
-            const [masterOptions, setMasterOptions] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.OPTIONS);
-                return saved ? JSON.parse(saved) : {
-                    types: DEFAULT_SEIZURE_TYPES,
-                    preSigns: DEFAULT_PRE_ICTAL_SIGNS,
-                    postSigns: DEFAULT_POST_ICTAL_SIGNS,
-                    triggers: DEFAULT_TRIGGERS
-                };
-            });
-
-            const [seizureHistory, setSeizureHistory] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.HISTORY);
-                return saved ? JSON.parse(saved) : [];
-            });
-
-            const [warningDays, setWarningDays] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.WARNINGS);
-                return saved ? JSON.parse(saved) : ['2026-02-05', '2026-02-20'];
-            });
-
-            // Save to local storage whenever state changes
-            useEffect(() => {
-                try {
-                    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
-                } catch (e) {
-                    console.error("Storage failed", e);
-                    // Fallback: Try saving without image if quota exceeded
-                    if (e.name === 'QuotaExceededError' || e.code === 22) {
-                        const profileNoImage = { ...profile, image: null };
-                        try {
-                            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profileNoImage));
-                            alert("保存容量がいっぱいのため、画像を除いて保存しました。");
-                        } catch (e2) {
-                            alert("データの保存に失敗しました。不要なデータを削除してください。");
-                        }
-                    }
-                }
-            }, [profile]);
-
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEYS.MEDS, JSON.stringify(meds));
-            }, [meds]);
-
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEYS.OPTIONS, JSON.stringify(masterOptions));
-            }, [masterOptions]);
-
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(seizureHistory));
-            }, [seizureHistory]);
-
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEYS.WARNINGS, JSON.stringify(warningDays));
-            }, [warningDays]);
-
-            // Form Draft State (Persistent data even if modal closes)
-            const [draftSeizure, setDraftSeizure] = useState(() => {
-                // Initialize draft from storage if available
-                const savedDraft = localStorage.getItem(STORAGE_KEYS.DRAFT);
-                return savedDraft ? JSON.parse(savedDraft) : INITIAL_SEIZURE_FORM;
-            });
-            
-            // Initialize Seizure Timer State from local storage to survive reloads/phone calls
-            const [isSeizing, setIsSeizing] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
-                return saved ? JSON.parse(saved).isSeizing : false;
-            });
+            const [draftSeizure, setDraftSeizure] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.DRAFT)) || INITIAL_SEIZURE_FORM);
+            const [isSeizing, setIsSeizing] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMER_STATE))?.isSeizing || false);
+            const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMER_STATE))?.startTime || null);
             const [timer, setTimer] = useState(0);
-            const [startTime, setStartTime] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
-                return saved ? JSON.parse(saved).startTime : null;
-            });
             
             const [showForm, setShowForm] = useState(false);
             const [showMedForm, setShowMedForm] = useState(false);
             const [selectedRecord, setSelectedRecord] = useState(null);
-            const [tempVideo, setTempVideo] = useState(null);
             const [nextMedInfo, setNextMedInfo] = useState(null);
             const [dailyTip, setDailyTip] = useState(null);
-            
+            const [hasVideoRecorded, setHasVideoRecorded] = useState(false); // New state to track if video was downloaded
+
             const timerInterval = useRef(null);
 
-            // Save Timer State to Local Storage
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.TIMER_STATE, JSON.stringify({ isSeizing, startTime })), [isSeizing, startTime]);
+            useEffect(() => localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(draftSeizure)), [draftSeizure]);
+            
             useEffect(() => {
-                const state = { isSeizing, startTime };
-                localStorage.setItem(STORAGE_KEYS.TIMER_STATE, JSON.stringify(state));
-            }, [isSeizing, startTime]);
-
-            // Save Draft to Local Storage
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(draftSeizure));
-            }, [draftSeizure]);
-
-            // 【追加】アプリがバックグラウンドから戻った時（電話終了後など）に即座に時間を更新する
-            useEffect(() => {
-                const handleVisibilityChange = () => {
-                    if (!document.hidden && isSeizing && startTime) {
-                        const now = Date.now();
-                        const diff = Math.floor((now - startTime) / 1000);
-                        setTimer(diff);
-                    }
-                };
-                
+                const handleVisibilityChange = () => { if (!document.hidden && isSeizing && startTime) setTimer(Math.floor((Date.now() - startTime) / 1000)); };
                 document.addEventListener('visibilitychange', handleVisibilityChange);
                 return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
             }, [isSeizing, startTime]);
 
-            // Load daily tip
-            useEffect(() => {
-                const randomTip = DAILY_TIPS[Math.floor(Math.random() * DAILY_TIPS.length)];
-                setDailyTip(randomTip);
-            }, []);
+            useEffect(() => { setDailyTip(DAILY_TIPS[Math.floor(Math.random() * DAILY_TIPS.length)]); }, []);
 
-            // Timer Logic
             useEffect(() => {
                 if (isSeizing && startTime) {
                     clearInterval(timerInterval.current);
-                    const now = Date.now();
-                    const diff = Math.floor((now - startTime) / 1000);
-                    setTimer(diff);
-
-                    timerInterval.current = setInterval(() => {
-                        const currentNow = Date.now();
-                        const currentDiff = Math.floor((currentNow - startTime) / 1000);
-                        setTimer(currentDiff);
-                    }, 1000);
-                } else {
-                    clearInterval(timerInterval.current);
-                }
+                    setTimer(Math.floor((Date.now() - startTime) / 1000));
+                    timerInterval.current = setInterval(() => setTimer(Math.floor((Date.now() - startTime) / 1000)), 1000);
+                } else { clearInterval(timerInterval.current); }
                 return () => clearInterval(timerInterval.current);
             }, [isSeizing, startTime]);
 
-            // Medication Schedule Calculation
             useEffect(() => {
                 const calculateNextDose = () => {
-                    if (meds.length === 0) {
-                        setNextMedInfo(null);
-                        return;
-                    }
-
+                    if (meds.length === 0) { setNextMedInfo(null); return; }
                     const now = new Date();
                     let candidates = [];
-
                     meds.forEach(med => {
                         med.times.forEach(timeStr => {
                             const [hours, minutes] = timeStr.split(':').map(Number);
-                            const todayDose = new Date(now);
-                            todayDose.setHours(hours, minutes, 0, 0);
-
-                            if (todayDose <= now) {
-                                const tomorrowDose = new Date(todayDose);
-                                tomorrowDose.setDate(tomorrowDose.getDate() + 1);
-                                candidates.push({ date: tomorrowDose, medName: med.name });
-                            } else {
-                                candidates.push({ date: todayDose, medName: med.name });
-                            }
+                            const todayDose = new Date(now); todayDose.setHours(hours, minutes, 0, 0);
+                            if (todayDose <= now) { const tomorrowDose = new Date(todayDose); tomorrowDose.setDate(tomorrowDose.getDate() + 1); candidates.push({ date: tomorrowDose, medName: med.name }); }
+                            else { candidates.push({ date: todayDose, medName: med.name }); }
                         });
                     });
-
-                    if (candidates.length === 0) {
-                        setNextMedInfo(null);
-                        return;
-                    }
-
+                    if (candidates.length === 0) { setNextMedInfo(null); return; }
                     candidates.sort((a, b) => a.date - b.date);
                     const nextDose = candidates[0];
-
                     const diffMs = nextDose.date - now;
-                    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-                    setNextMedInfo({
-                        time: nextDose.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        remaining: `${diffHrs}時間${diffMins}分`,
-                        name: nextDose.medName
-                    });
+                    setNextMedInfo({ time: nextDose.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), remaining: `${Math.floor(diffMs / 3600000)}時間${Math.floor((diffMs % 3600000) / 60000)}分`, name: nextDose.medName });
                 };
-
                 calculateNextDose();
-                const interval = setInterval(calculateNextDose, 60000); 
+                const interval = setInterval(calculateNextDose, 60000);
                 return () => clearInterval(interval);
             }, [meds]);
 
@@ -1653,250 +890,77 @@
 
             const handleStartStop = () => {
                 if (isSeizing) {
-                    // STOP recording
                     setIsSeizing(false);
-                    setStartTime(null); // Timer state will be cleared by useEffect
+                    setStartTime(null);
                     setShowForm(true); 
                 } else {
-                    // START recording
                     setIsSeizing(true);
                     setStartTime(Date.now());
                     setTimer(0);
-                    setTempVideo(null);
-                    setDraftSeizure(INITIAL_SEIZURE_FORM); // Reset draft on new seizure start
+                    setHasVideoRecorded(false); // Reset video flag
+                    setDraftSeizure(INITIAL_SEIZURE_FORM);
                 }
             };
 
-            const handleVideoRecord = (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    setTempVideo(e.target.files[0]);
-                }
+            const handleVideoAvailable = (available) => {
+                setHasVideoRecorded(available);
             };
 
             const handleSaveSeizure = () => {
-                // Use draftSeizure data instead of local state
-                const newRecord = {
-                    id: Date.now(),
-                    date: new Date().toISOString().split('T')[0],
-                    time: new Date().toTimeString().slice(0, 5),
-                    duration: timer,
-                    hasVideo: false, // Default to false, can be added later
-                    ...draftSeizure // Use persistent draft data
-                };
+                const newRecord = { id: Date.now(), date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), duration: timer, hasVideo: hasVideoRecorded, ...draftSeizure };
                 setSeizureHistory([newRecord, ...seizureHistory]);
                 setShowForm(false);
                 setTimer(0);
-                setTempVideo(null);
-                
-                // Clear persistent states
-                setDraftSeizure(INITIAL_SEIZURE_FORM); 
+                setDraftSeizure(INITIAL_SEIZURE_FORM);
+                setHasVideoRecorded(false);
                 localStorage.removeItem(STORAGE_KEYS.TIMER_STATE);
                 localStorage.removeItem(STORAGE_KEYS.DRAFT);
-
                 setActiveTab('history');
             };
 
-            const handleDeleteSeizure = (id) => {
-                // window.confirm は使用しない (SeizureDetailModal側で確認済み)
-                setSeizureHistory(prev => prev.filter(record => record.id !== id));
-                setSelectedRecord(null);
-            };
-
-            const handleUpdateSeizure = (updatedRecord) => {
-                setSeizureHistory(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-                // 選択中のレコードも更新して即座に反映させる
-                setSelectedRecord(updatedRecord);
-            };
-
-            const handleAddMed = (newMed) => {
-                setMeds([...meds, { ...newMed, id: Date.now(), takenToday: [] }]);
-                setShowMedForm(false);
-            };
-
-            const handleDeleteMed = (id) => {
-                setMeds(meds.filter(med => med.id !== id));
-            };
-
+            const handleDeleteSeizure = (id) => { setSeizureHistory(prev => prev.filter(record => record.id !== id)); setSelectedRecord(null); };
+            const handleUpdateSeizure = (updatedRecord) => { setSeizureHistory(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r)); setSelectedRecord(updatedRecord); };
+            const handleAddMed = (newMed) => { setMeds([...meds, { ...newMed, id: Date.now(), takenToday: [] }]); setShowMedForm(false); };
+            const handleDeleteMed = (id) => setMeds(meds.filter(med => med.id !== id));
             const toggleMedTaken = (medId, time) => {
                 setMeds(meds.map(med => {
                     if (med.id === medId) {
                         const isTaken = med.takenToday.includes(time);
-                        const newTaken = isTaken 
-                            ? med.takenToday.filter(t => t !== time)
-                            : [...med.takenToday, time];
-                        
+                        const newTaken = isTaken ? med.takenToday.filter(t => t !== time) : [...med.takenToday, time];
                         const dosesPerDay = med.times.length || 1;
-                        const doseValue = 1 / dosesPerDay;
-                        let newRemaining = parseFloat(med.remaining);
-                        
-                        if (isTaken) {
-                            newRemaining += doseValue;
-                        } else {
-                            newRemaining -= doseValue;
-                        }
-                        newRemaining = Math.max(0, Math.round(newRemaining * 100) / 100);
-                        
-                        return { ...med, takenToday: newTaken, remaining: newRemaining };
+                        let newRemaining = parseFloat(med.remaining) + (isTaken ? (1/dosesPerDay) : -(1/dosesPerDay));
+                        return { ...med, takenToday: newTaken, remaining: Math.max(0, Math.round(newRemaining * 100) / 100) };
                     }
                     return med;
                 }));
             };
-
-            const toggleWarningDay = (dateString) => {
-                setWarningDays(prev => {
-                    if (prev.includes(dateString)) {
-                        return prev.filter(d => d !== dateString);
-                    } else {
-                        return [...prev, dateString];
-                    }
-                });
-            };
-
-            const addMasterOption = (category, value) => {
-                if (!value) return;
-                setMasterOptions(prev => {
-                    if (category === 'types') {
-                        const newType = { id: `custom_${Date.now()}`, label: value };
-                        return { ...prev, types: [...prev.types, newType] };
-                    }
-                    return { ...prev, [category]: [...prev[category], value] };
-                });
-            };
-
-            const removeMasterOption = (category, valueOrId) => {
-                setMasterOptions(prev => {
-                    if (category === 'types') {
-                        return { ...prev, types: prev.types.filter(t => t.id !== valueOrId) };
-                    }
-                    return { ...prev, [category]: prev[category].filter(item => item !== valueOrId) };
-                });
-            };
-
-            // --- Layout Structure ---
+            const toggleWarningDay = (dateString) => setWarningDays(prev => prev.includes(dateString) ? prev.filter(d => d !== dateString) : [...prev, dateString]);
+            const addMasterOption = (category, value) => { if (!value) return; setMasterOptions(prev => category === 'types' ? { ...prev, types: [...prev.types, { id: `custom_${Date.now()}`, label: value }] } : { ...prev, [category]: [...prev[category], value] }); };
+            const removeMasterOption = (category, valueOrId) => { setMasterOptions(prev => category === 'types' ? { ...prev, types: prev.types.filter(t => t.id !== valueOrId) } : { ...prev, [category]: prev[category].filter(item => item !== valueOrId) }); };
 
             return (
                 <div className="min-h-screen font-sans text-stone-900 bg-[#f8f7fa] relative selection:bg-[#f0eef5]">
-                
-                    {/* Background Decoration */}
                     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
                         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,#f0eef5,transparent_70%)]"></div>
                         <div className="absolute top-[20%] left-[-10%] w-96 h-96 bg-[#8c7b99]/10 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-[10%] right-[-5%] w-80 h-80 bg-[#7b8c99]/10 rounded-full blur-3xl"></div>
                     </div>
-
                     <div className="max-w-md mx-auto min-h-screen bg-white/80 backdrop-blur-sm shadow-2xl relative overflow-hidden border-x border-white/50">
-                        
                         <main className="p-5 h-full overflow-y-auto pb-24 no-scrollbar">
-                            {activeTab === 'home' && (
-                                <HomeView 
-                                    profile={profile}
-                                    isSeizing={isSeizing}
-                                    isEmergency={isEmergency}
-                                    timer={timer}
-                                    handleStartStop={handleStartStop}
-                                    tempVideo={tempVideo}
-                                    handleVideoRecord={handleVideoRecord}
-                                    showForm={showForm}
-                                    setShowForm={setShowForm}
-                                    dailyTip={dailyTip}
-                                    nextMedInfo={nextMedInfo}
-                                    setActiveTab={setActiveTab}
-                                    seizureHistory={seizureHistory}
-                                    masterOptions={masterOptions}
-                                    setSelectedRecord={setSelectedRecord}
-                                />
-                            )}
-                            {activeTab === 'history' && (
-                                <HistoryView 
-                                    seizureHistory={seizureHistory}
-                                    masterOptions={masterOptions}
-                                    warningDays={warningDays}
-                                    toggleWarningDay={toggleWarningDay}
-                                    setSelectedRecord={setSelectedRecord}
-                                    setActiveTab={setActiveTab}
-                                />
-                            )}
-                            {activeTab === 'meds' && (
-                                <MedsView 
-                                    meds={meds}
-                                    handleDeleteMed={handleDeleteMed}
-                                    toggleMedTaken={toggleMedTaken}
-                                    setShowMedForm={setShowMedForm}
-                                />
-                            )}
-                            {activeTab === 'profile' && (
-                                <ProfileView 
-                                    profile={profile}
-                                    setProfile={setProfile}
-                                    masterOptions={masterOptions}
-                                    addMasterOption={addMasterOption}
-                                    removeMasterOption={removeMasterOption}
-                                />
-                            )}
+                            {activeTab === 'home' && <HomeView profile={profile} isSeizing={isSeizing} isEmergency={isEmergency} timer={timer} handleStartStop={handleStartStop} showForm={showForm} setShowForm={setShowForm} dailyTip={dailyTip} nextMedInfo={nextMedInfo} setActiveTab={setActiveTab} seizureHistory={seizureHistory} masterOptions={masterOptions} setSelectedRecord={setSelectedRecord} onVideoAvailable={handleVideoAvailable} />}
+                            {activeTab === 'history' && <HistoryView seizureHistory={seizureHistory} masterOptions={masterOptions} warningDays={warningDays} toggleWarningDay={toggleWarningDay} setSelectedRecord={setSelectedRecord} setActiveTab={setActiveTab} />}
+                            {activeTab === 'meds' && <MedsView meds={meds} handleDeleteMed={handleDeleteMed} toggleMedTaken={toggleMedTaken} setShowMedForm={setShowMedForm} />}
+                            {activeTab === 'profile' && <ProfileView profile={profile} setProfile={setProfile} masterOptions={masterOptions} addMasterOption={addMasterOption} removeMasterOption={removeMasterOption} />}
                         </main>
-
-                        {showForm && (
-                            <RecordForm 
-                                timer={timer}
-                                draftSeizure={draftSeizure}
-                                setDraftSeizure={setDraftSeizure}
-                                masterOptions={masterOptions}
-                                handleSaveSeizure={handleSaveSeizure}
-                                setShowForm={setShowForm}
-                            />
-                        )}
-                        
-                        {showMedForm && (
-                            <AddMedForm 
-                                handleAddMed={handleAddMed}
-                                setShowMedForm={setShowMedForm}
-                            />
-                        )}
-                        
-                        {selectedRecord && (
-                            <SeizureDetailModal 
-                                record={selectedRecord} 
-                                onClose={() => setSelectedRecord(null)}
-                                onDelete={handleDeleteSeizure}
-                                onUpdate={handleUpdateSeizure}
-                                masterOptions={masterOptions}
-                            />
-                        )}
-
+                        {showForm && <RecordForm timer={timer} draftSeizure={draftSeizure} setDraftSeizure={setDraftSeizure} masterOptions={masterOptions} handleSaveSeizure={handleSaveSeizure} setShowForm={setShowForm} hasVideo={hasVideoRecorded} />}
+                        {showMedForm && <AddMedForm handleAddMed={handleAddMed} setShowMedForm={setShowMedForm} />}
+                        {selectedRecord && <SeizureDetailModal record={selectedRecord} onClose={() => setSelectedRecord(null)} onDelete={handleDeleteSeizure} onUpdate={handleUpdateSeizure} masterOptions={masterOptions} />}
                         <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur border-t border-stone-100 px-6 py-3 flex justify-between items-center z-10 safe-area-bottom">
-                            <button 
-                                onClick={() => setActiveTab('home')}
-                                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'home' ? 'text-[#8c7b99]' : 'text-stone-400'}`}
-                            >
-                                <Timer className="w-6 h-6" />
-                                <span className="text-[10px] font-bold">ホーム</span>
-                            </button>
-                            
-                            <button 
-                                onClick={() => setActiveTab('history')}
-                                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'history' ? 'text-[#8c7b99]' : 'text-stone-400'}`}
-                            >
-                                <BarChart2 className="w-6 h-6" />
-                                <span className="text-[10px] font-bold">ログ</span>
-                            </button>
-
+                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'home' ? 'text-[#8c7b99]' : 'text-stone-400'}`}><Timer className="w-6 h-6" /><span className="text-[10px] font-bold">ホーム</span></button>
+                            <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'history' ? 'text-[#8c7b99]' : 'text-stone-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">ログ</span></button>
                             <div className="w-12"></div>
-
-                            <button 
-                                onClick={() => setActiveTab('meds')}
-                                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'meds' ? 'text-[#8c7b99]' : 'text-stone-400'}`}
-                            >
-                                <Pill className="w-6 h-6" />
-                                <span className="text-[10px] font-bold">お薬</span>
-                            </button>
-
-                            <button 
-                                onClick={() => setActiveTab('profile')}
-                                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'profile' ? 'text-[#8c7b99]' : 'text-stone-400'}`}
-                            >
-                                <Settings className="w-6 h-6" />
-                                <span className="text-[10px] font-bold">設定</span>
-                            </button>
+                            <button onClick={() => setActiveTab('meds')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'meds' ? 'text-[#8c7b99]' : 'text-stone-400'}`}><Pill className="w-6 h-6" /><span className="text-[10px] font-bold">お薬</span></button>
+                            <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'profile' ? 'text-[#8c7b99]' : 'text-stone-400'}`}><Settings className="w-6 h-6" /><span className="text-[10px] font-bold">設定</span></button>
                         </nav>
                     </div>
                 </div>

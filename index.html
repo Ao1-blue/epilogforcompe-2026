@@ -101,7 +101,8 @@
             Heart,
             Video,
             Image as ImageIcon,
-            Download 
+            Download,
+            Smartphone 
         } from 'lucide-react';
 
         /**
@@ -392,14 +393,24 @@
                     {isSeizing && (
                         <div className="mt-6 w-full flex flex-col items-center gap-3 px-8 animate-fadeIn">
                             
-                            {/* Message Panel instead of Camera Button */}
-                            <div className="bg-white border-2 border-[#8c7b99] rounded-xl p-4 w-full text-center shadow-md">
-                                <Video className="w-8 h-8 text-[#8c7b99] mx-auto mb-2" />
-                                <p className="font-bold text-stone-700 mb-1 text-sm">カメラを起動して動画を撮影</p>
-                                <p className="text-[10px] text-stone-500 leading-relaxed">
-                                    ホーム画面に戻り、標準カメラアプリで撮影してください。<br/>
-                                    <strong>この画面を閉じても計測は続きます。</strong>
-                                </p>
+                            {/* Message Panel (Guidance) - Improved Design */}
+                            <div className="w-full bg-white border border-stone-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-[#8c7b99]"></div>
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-[#f0eef5] rounded-full shrink-0">
+                                         <Video className="w-5 h-5 text-[#8c7b99]" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-bold text-stone-700 text-sm">動画の撮影をお願いします</p>
+                                        <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                                            一度ホーム画面に戻り、標準カメラアプリで発作の様子を撮影してください。
+                                        </p>
+                                        <p className="text-[10px] text-[#6b8c6b] font-bold mt-2 flex items-center gap-1">
+                                            <CheckCircle className="w-3 h-3" />
+                                            アプリを閉じても計測は続きます
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Emergency Button - Only if 5 min passed */}
@@ -679,15 +690,6 @@
             // 削除確認状態の管理
             const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-            const handleVideoSelect = (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    // ファイルが選択されたら動画ありフラグを立てる
-                    // ファイル自体は保存できないため、フラグのみ更新
-                    const updatedRecord = { ...record, hasVideo: true };
-                    onUpdate(updatedRecord);
-                }
-            };
-
             const toggleHasVideo = () => {
                 const updatedRecord = { ...record, hasVideo: !record.hasVideo };
                 onUpdate(updatedRecord);
@@ -770,34 +772,18 @@
                                     <Video className="w-3 h-3" /> 動画記録
                                 </h4>
                                 
-                                <div className="bg-stone-50 p-3 rounded-lg border border-stone-100 space-y-3">
-                                    {/* 手動トグル */}
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-bold text-stone-600">動画あり</span>
-                                        <button 
-                                            onClick={toggleHasVideo}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${record.hasVideo ? 'bg-[#6b8c6b]' : 'bg-stone-300'}`}
-                                        >
-                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${record.hasVideo ? 'translate-x-6' : ''}`}></div>
-                                        </button>
-                                    </div>
-
-                                    {/* ファイル選択（補助機能） */}
-                                    <label className="flex items-center justify-center gap-2 w-full bg-white border border-dashed border-stone-300 text-stone-500 p-2 rounded-lg cursor-pointer hover:bg-stone-50 transition-colors text-xs">
-                                        <ImageIcon className="w-3 h-3" />
-                                        <span>カメラロールから選択してマーク</span>
-                                        <input 
-                                            type="file" 
-                                            accept="video/*" 
-                                            className="hidden" 
-                                            onChange={handleVideoSelect}
-                                        />
-                                    </label>
-                                    
-                                    <p className="text-[10px] text-stone-400">
-                                        ※動画ファイル本体はこのアプリには保存されませんが、「動画あり」として記録されます。
-                                    </p>
+                                <div className="bg-stone-50 p-4 rounded-lg border border-stone-100 flex items-center justify-between">
+                                    <span className="text-sm font-bold text-stone-600">動画あり</span>
+                                    <button 
+                                        onClick={toggleHasVideo}
+                                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${record.hasVideo ? 'bg-[#6b8c6b]' : 'bg-stone-300'}`}
+                                    >
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${record.hasVideo ? 'translate-x-6' : ''}`}></div>
+                                    </button>
                                 </div>
+                                <p className="text-[10px] text-stone-400 mt-2 ml-1">
+                                    ※動画ファイルは端末に保存されています。ここをオンにすると一覧で動画アイコンが表示されます。
+                                </p>
                             </div>
 
                             {/* 削除ボタンエリア */}

@@ -1667,6 +1667,8 @@
 
             const handleUpdateSeizure = (updatedRecord) => {
                 setSeizureHistory(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+                // 選択中のレコードも更新して即座に反映させる
+                setSelectedRecord(updatedRecord);
             };
 
             const handleAddMed = (newMed) => {

@@ -83,7 +83,7 @@
             X, 
             BarChart2, 
             CloudRain, 
-            Phone,
+            Phone, 
             Clock,
             CheckCircle,
             FileText,
@@ -236,8 +236,8 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // Compress to JPEG with 0.7 quality
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    // Compress to JPEG with lower quality for storage efficiency
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5); 
                     callback(dataUrl);
                 };
             };
@@ -1163,7 +1163,8 @@
                             ここでは「全履歴」または「その月の履歴」のどちらが親切かを考慮。
                             ログ画面なので、スクロールで見れる全履歴（新しい順）の方が使い勝手が良いと判断し維持。
                         */}
-                        {seizureHistory
+                        {/* ソート処理を配列コピーに対して行うように修正 */}
+                        {[...seizureHistory]
                             .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
                             .map(record => (
                             <div 
@@ -1238,12 +1239,11 @@
                         alert("画像サイズが大きすぎます。5MB以下の画像を選択してください。");
                         return;
                     }
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        setTempProfile(prev => ({ ...prev, image: reader.result }));
-                        setIsSaved(false);
-                    };
-                    reader.readAsDataURL(file);
+                    // Resize image using the helper function
+                    resizeImage(file, 150, 150, (dataUrl) => {
+                         setTempProfile(prev => ({ ...prev, image: dataUrl }));
+                         setIsSaved(false);
+                    });
                 }
             };
 
@@ -1492,7 +1492,16 @@
                     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
                 } catch (e) {
                     console.error("Storage failed", e);
-                    alert("保存容量が上限に達したため、プロフィールの保存に失敗しました。画像を削除するか変更してください。");
+                    // Fallback: Try saving without image if quota exceeded
+                    if (e.name === 'QuotaExceededError' || e.code === 22) {
+                        const profileNoImage = { ...profile, image: null };
+                        try {
+                            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profileNoImage));
+                            alert("保存容量がいっぱいのため、画像を除いて保存しました。");
+                        } catch (e2) {
+                            alert("データの保存に失敗しました。不要なデータを削除してください。");
+                        }
+                    }
                 }
             }, [profile]);
 

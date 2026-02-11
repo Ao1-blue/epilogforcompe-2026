@@ -92,7 +92,8 @@
             Sparkles,
             Heart,
             Video,
-            Image as ImageIcon // アイコン追加
+            Image as ImageIcon,
+            Download // アイコン追加
         } from 'lucide-react';
 
         /**
@@ -402,16 +403,28 @@
                                 />
                             </label>
                             
-                            <p className="text-[10px] text-stone-400 text-center leading-tight mb-2">
-                                ※動画は本体に自動保存されません。<br/>
-                                確実に保存するには標準カメラをご利用ください。
-                            </p>
+                            {/* DOWNLOAD LINK - Only appears if video is recorded */}
+                            {tempVideo && (
+                                <div className="flex flex-col items-center gap-1 mt-2 w-full animate-fadeIn">
+                                    <a 
+                                        href={URL.createObjectURL(tempVideo)} 
+                                        download={`epilog_seizure_${new Date().toISOString().slice(0,10)}.mp4`}
+                                        className="flex items-center justify-center gap-2 bg-stone-500 text-white px-6 py-3 rounded-xl font-bold shadow-md w-full max-w-xs hover:bg-stone-600 transition-colors"
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        動画を端末に保存
+                                    </a>
+                                    <p className="text-[10px] text-stone-400 text-center">
+                                        ※アプリ終了前に必ず保存してください
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Emergency Button - Only if 5 min passed */}
                             {isEmergency && profile.vetPhone && (
                                 <a 
                                     href={`tel:${profile.vetPhone}`}
-                                    className="flex items-center justify-center gap-2 bg-[#f5ebeb] text-[#a86060] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#ffe0e0] transition-colors w-full max-w-xs animate-bounce"
+                                    className="flex items-center justify-center gap-2 bg-[#f5ebeb] text-[#a86060] px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#ffe0e0] transition-colors w-full max-w-xs animate-bounce mt-4"
                                 >
                                     <Phone className="w-5 h-5" />
                                     <span>{profile.vetName || '動物病院'}へ連絡</span>
@@ -420,7 +433,7 @@
                             
                             {/* Warning if no phone set */}
                             {isEmergency && !profile.vetPhone && (
-                                <div className="flex flex-col items-center gap-1 bg-stone-100 text-stone-500 px-6 py-3 rounded-xl font-bold w-full max-w-xs text-center">
+                                <div className="flex flex-col items-center gap-1 bg-stone-100 text-stone-500 px-6 py-3 rounded-xl font-bold w-full max-w-xs text-center mt-4">
                                     <div className="flex items-center gap-2">
                                         <AlertTriangle className="w-4 h-4" />
                                         <span>緊急連絡先未設定</span>

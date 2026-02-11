@@ -815,9 +815,6 @@
                                         <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${record.hasVideo ? 'translate-x-6' : ''}`}></div>
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-stone-400 mt-2 ml-1">
-                                    ※動画ファイルは端末に保存されています。ここをオンにすると一覧で動画アイコンが表示されます。
-                                </p>
                             </div>
 
                             {/* 削除ボタンエリア */}
@@ -859,243 +856,178 @@
             );
         };
 
-        // 5. Profile & Settings View
-        const ProfileView = ({ 
-            profile, 
-            setProfile, 
-            masterOptions, 
-            addMasterOption, 
-            removeMasterOption 
+        // 3. History View
+        const HistoryView = ({
+            seizureHistory,
+            masterOptions,
+            warningDays,
+            toggleWarningDay,
+            setSelectedRecord,
+            setActiveTab
         }) => {
-            const [tempProfile, setTempProfile] = useState(profile);
-            const [isSaved, setIsSaved] = useState(false);
-            const [newItemText, setNewItemText] = useState('');
-            const [manageCategory, setManageCategory] = useState(null);
+            const DEMO_TODAY = new Date(); // Use current date directly
+            
+            // カレンダーの表示月を管理するState
+            const [viewDate, setViewDate] = useState(new Date());
 
-            useEffect(() => {
-                setTempProfile(profile);
-            }, [profile]);
+            let daysSinceLast = '-';
+            if (seizureHistory.length > 0) {
+                const latestSeizure = seizureHistory.reduce((a, b) => new Date(a.date) > new Date(b.date) ? a : b);
+                const lastDate = new Date(latestSeizure.date);
+                
+                const todayCalc = new Date(DEMO_TODAY);
+                todayCalc.setHours(0,0,0,0);
+                lastDate.setHours(0,0,0,0);
 
-            const handleChange = (e) => {
-                const { name, value } = e.target;
-                setTempProfile(prev => ({ ...prev, [name]: value }));
-                setIsSaved(false);
-            };
+                const diffTime = todayCalc - lastDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                daysSinceLast = diffDays >= 0 ? diffDays : 0;
+            }
 
-            // Image handling with Base64 conversion for persistence
-            const handleImageChange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                        alert("画像サイズが大きすぎます。5MB以下の画像を選択してください。");
-                        return;
-                    }
-                    // Resize image using the helper function
-                    resizeImage(file, 400, 400, (dataUrl) => {
-                         setTempProfile(prev => ({ ...prev, image: dataUrl }));
-                         setIsSaved(false);
-                    });
-                }
-            };
+            // カレンダー生成ロジック
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth(); // 0-11
+            
+            // 月の初日と日数
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const startDayOfWeek = firstDayOfMonth.getDay(); // 0(Sun) - 6(Sat)
 
-            const handleSave = () => {
-                setProfile(tempProfile);
-                setIsSaved(true);
-                setTimeout(() => setIsSaved(false), 2000);
-            };
+            const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
             return (
                 <div className="space-y-6 pb-20">
                     <header className="mb-4">
-                        <h1 className="text-2xl font-bold text-stone-800">設定</h1>
-                        <p className="text-sm text-stone-500">プロフィールと記録項目の管理</p>
+                        <h1 className="text-2xl font-bold text-stone-800">記録ログ</h1>
+                        <p className="text-sm text-stone-500">発作履歴と傾向分析</p>
                     </header>
 
-                    {/* Photo Upload Area */}
-                    <div className="flex flex-col items-center mb-6">
-                        <div className="relative w-32 h-32 mb-2 group">
-                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#ded9e6] shadow-sm bg-stone-100 flex items-center justify-center">
-                                {tempProfile.image ? (
-                                    <img src={tempProfile.image} alt="Profile" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Dog className="w-12 h-12 text-[#8c7b99]" />
-                                )}
+                    <div className="grid grid-cols-2 gap-4">
+                        <Card className="bg-[#8c7b99] text-white border-none">
+                            <div className="text-[#e6e2ea] text-xs mb-1">今月の発作回数</div>
+                            <div className="text-3xl font-bold">
+                                {seizureHistory.filter(s => s.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)).length} 
+                                <span className="text-sm font-normal"> 回</span>
                             </div>
-                            <label className="absolute bottom-0 right-0 bg-[#8c7b99] p-2 rounded-full text-white shadow-md cursor-pointer hover:bg-[#7e6c8f] transition-colors">
-                                <Camera className="w-5 h-5" />
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                            </label>
-                        </div>
+                        </Card>
+                        <Card>
+                            <div className="text-stone-500 text-xs mb-1">前回からの間隔</div>
+                            <div className="text-xl font-bold text-stone-700">{daysSinceLast} <span className="text-sm font-normal">日</span></div>
+                        </Card>
                     </div>
 
-                    <div className="space-y-4">
-                        <Card>
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <Dog className="w-4 h-4 text-[#8c7b99]" />
-                                基本情報
+                    <Card>
+                        <div className="flex justify-between items-center mb-4 px-2">
+                            <button onClick={prevMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400">
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <h3 className="font-bold text-stone-700 flex items-center gap-2 text-lg">
+                                <CalendarIcon className="w-5 h-5 text-[#8c7b99]" />
+                                {year}年 {month + 1}月
                             </h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">愛犬の名前</label>
-                                    <input 
-                                        type="text" 
-                                        name="name" 
-                                        value={tempProfile.name} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.name}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                    />
+                            <button onClick={nextMonth} className="p-2 rounded-full hover:bg-stone-100 text-stone-400">
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2 text-stone-400 font-medium">
+                            <div className="text-[#a86060]">S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div className="text-[#7b8c99]">S</div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center">
+                            {/* 空白セル（月の開始曜日まで） */}
+                            {[...Array(startDayOfWeek)].map((_, i) => (
+                                <div key={`empty-${i}`} className="aspect-square"></div>
+                            ))}
+                            
+                            {/* 日付セル */}
+                            {[...Array(daysInMonth)].map((_, i) => {
+                                const day = i + 1;
+                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const hasSeizure = seizureHistory.some(s => s.date === dateStr);
+                                const isWarning = warningDays.includes(dateStr);
+                                
+                                const isToday = DEMO_TODAY.getFullYear() === year && DEMO_TODAY.getMonth() === month && DEMO_TODAY.getDate() === day;
+
+                                let dayClass = 'text-stone-600 hover:bg-stone-50 cursor-pointer';
+                                if (hasSeizure) {
+                                    dayClass = 'bg-[#8c7b99] text-white font-bold shadow-md cursor-pointer';
+                                } else if (isWarning) {
+                                    dayClass = 'bg-[#fff8e6] text-[#b38f5a] font-bold border border-[#f5ebc9] cursor-pointer';
+                                }
+                                
+                                // Muted ring for today
+                                const todayStyle = isToday ? 'ring-2 ring-[#d8d3df] font-bold z-10 relative' : '';
+
+                                return (
+                                    <div 
+                                        key={i} 
+                                        onClick={() => hasSeizure ? setSelectedRecord(seizureHistory.find(s => s.date === dateStr)) : toggleWarningDay(dateStr)}
+                                        className={`
+                                            aspect-square flex items-center justify-center rounded-full text-sm transition-all
+                                            ${dayClass} ${todayStyle}
+                                        `}
+                                    >
+                                        {day}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="mt-4 flex gap-4 text-stone-500 justify-center flex-wrap" style={{fontSize: '10px'}}>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#8c7b99]"></div>発作あり</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#fff8e6] border border-[#f5ebc9]"></div>注意日</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full border-2 border-[#d8d3df]"></div>今日</div>
+                        </div>
+                    </Card>
+
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-stone-700 flex items-center gap-2">
+                            詳細履歴 <span className="text-xs font-normal text-stone-400 bg-stone-100 px-2 py-1 rounded-full">タップして詳細を表示</span>
+                        </h3>
+                        {/* 表示月に関連する履歴のみを表示、なければ直近を表示するロジックに変更も可能だが、
+                            ここでは「全履歴」または「その月の履歴」のどちらが親切かを考慮。
+                            ログ画面なので、スクロールで見れる全履歴（新しい順）の方が使い勝手が良いと判断し維持。
+                        */}
+                        {/* ソート処理を配列コピーに対して行うように修正 */}
+                        {[...seizureHistory]
+                            .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                            .map(record => (
+                            <div 
+                                key={record.id} 
+                                onClick={() => setSelectedRecord(record)}
+                                className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 cursor-pointer hover:border-[#ded9e6] hover:shadow-md transition-all active:scale-[0.98] group"
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded text-xs font-mono">{record.date}</span>
+                                        <span className="text-stone-800 font-bold">{record.time}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {/* 動画アイコンの追加 */}
+                                        {record.hasVideo && (
+                                            <div className="bg-[#eaf5ea] p-1 rounded-full text-[#6b8c6b]">
+                                                <Video className="w-3 h-3" />
+                                            </div>
+                                        )}
+                                        <Badge type={record.duration > 300 ? 'red' : 'purple'}>
+                                            {Math.floor(record.duration / 60)}分{record.duration % 60}秒
+                                        </Badge>
+                                        <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-[#8c7b99] transition-colors" />
+                                    </div>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">犬種</label>
-                                        <input 
-                                            type="text" 
-                                            name="breed" 
-                                            value={tempProfile.breed} 
-                                            onChange={handleChange} 
-                                            placeholder={EXAMPLE_PROFILE.breed}
-                                            className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">性別</label>
-                                        <div className="flex gap-2">
-                                        {['Male', 'Female'].map(g => (
-                                            <button 
-                                                key={g}
-                                                onClick={() => { setTempProfile({...tempProfile, gender: g}); setIsSaved(false); }}
-                                                className={`flex-1 py-3 rounded-lg text-sm font-bold border transition-colors ${
-                                                    tempProfile.gender === g 
-                                                        ? 'bg-[#f0eef5] border-[#ded9e6] text-[#8c7b99]' 
-                                                        : 'bg-stone-50 border-stone-200 text-stone-400'
-                                                }`}
-                                            >
-                                                {g === 'Male' ? '♂' : '♀'}
-                                            </button>
-                                        ))}
-                                        </div>
-                                    </div>
+                                <div className="mb-2">
+                                    <span className="text-sm text-stone-700 font-medium">
+                                        {masterOptions.types.find(t => t.id === record.type)?.label || record.type}
+                                    </span>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">体重 (kg)</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.1" 
-                                            name="weight" 
-                                            value={tempProfile.weight} 
-                                            onChange={handleChange} 
-                                            placeholder={EXAMPLE_PROFILE.weight}
-                                            className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" 
-                                        />
+                                {record.typeDetail && (
+                                    <div className="text-xs text-stone-400 mb-2 truncate">
+                                        {record.typeDetail}
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-stone-500 mb-1">誕生日</label>
-                                        <input type="date" name="birthday" value={tempProfile.birthday} onChange={handleChange} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">発症年月 (初発)</label>
-                                    <input type="date" name="onset" value={tempProfile.onset} onChange={handleChange} className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-[#8c7b99]" />
-                                </div>
+                                )}
                             </div>
-                        </Card>
-
-                        <Card className="border-l-4 border-l-[#c55b5b]">
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-[#c55b5b]" /> 緊急連絡先
-                            </h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">病院名</label>
-                                    <input 
-                                        type="text" 
-                                        name="vetName" 
-                                        value={tempProfile.vetName} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.vetName}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-500 mb-1">電話番号</label>
-                                    <input 
-                                        type="tel" 
-                                        name="vetPhone" 
-                                        value={tempProfile.vetPhone} 
-                                        onChange={handleChange} 
-                                        placeholder={EXAMPLE_PROFILE.vetPhone}
-                                        className="w-full p-3 rounded-lg bg-stone-50 border border-stone-200 focus:ring-2 focus:ring-[#c55b5b] outline-none font-mono text-lg"
-                                    />
-                                    <p className="text-xs text-stone-400 mt-2">※発作時の緊急通報ボタンで使用されます</p>
-                                </div>
-                            </div>
-                        </Card>
-
-                        <Card className="border-l-4 border-l-[#ded9e6]">
-                            <h3 className="font-bold text-stone-700 mb-4 border-b border-stone-100 pb-2 flex items-center gap-2">
-                                <List className="w-4 h-4 text-[#8c7b99]" /> 記録項目の管理
-                            </h3>
-                            <div className="text-xs text-stone-400 mb-4">よく使う項目をあらかじめ登録・削除できます。</div>
-                            
-                            <MasterListManager 
-                                category="types" 
-                                title="発作タイプ" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="preSigns" 
-                                title="前兆・予兆" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="triggers" 
-                                title="誘因 (トリガー)" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                            <MasterListManager 
-                                category="postSigns" 
-                                title="発作後の様子" 
-                                manageCategory={manageCategory}
-                                setManageCategory={setManageCategory}
-                                masterOptions={masterOptions}
-                                removeMasterOption={removeMasterOption}
-                                newItemText={newItemText}
-                                setNewItemText={setNewItemText}
-                                addMasterOption={addMasterOption}
-                            />
-                        </Card>
-
-                        <button 
-                            onClick={handleSave}
-                            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2
-                                ${isSaved ? 'bg-[#6b8c6b]' : 'bg-[#8c7b99] hover:bg-[#7e6c8f]'}
-                            `}
-                        >
-                            {isSaved ? <><CheckCircle className="w-5 h-5"/> 保存しました</> : <><Save className="w-5 h-5"/> 設定を保存</>}
-                        </button>
+                        ))}
                     </div>
                 </div>
             );
